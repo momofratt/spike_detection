@@ -76,19 +76,30 @@ def add_spike_cols(df, species):
     for spec in species:
         df.insert(len(df.columns), 'spike_'+spec.lower(), False)
     
-    # i=0
-    # while i < len(df):
-    #     spikes = df.loc[i,'SpeciesList'].split(',')       
-    #     for spec in species:
-    #         if (spec.lower() in spikes):
-    #             df.loc[i, 'spike_'+spec.lower()] = True
-    #     i=i+1
-    
     for i, row in df.iterrows():
         spikes = df.loc[i,'SpeciesList'].split(',')
         for spec in species:
                 if (spec.lower() in spikes):
                     df.loc[i, 'spike_'+spec.lower()] = True
+
+def add_spike_cols_PIQc(df, specie):
+    """
+    add a bool column indicating spikes for each specie in the PIQc data files
+
+    Parameters
+    ----------
+    df : DataFrame
+        input dataframe with 'SpeciesList' column
+    species: str
+        specie 
+
+    """  
+    df.insert(len(df.columns), 'spike_'+specie.lower()+'_PIQc', False)
+    
+    for i, row in df.iterrows():
+        manual_flags = df.loc[i,'ManualDescriptiveFlag'].split(',')
+        if (('Z' in manual_flags)|('Z-1' in manual_flags)|('Z-2' in manual_flags)):
+            df.loc[i, 'spike_'+specie.lower()+'_PIQc'] = True
 
 def get_monthly_data(stat, id, alg, params, spec, height,years):
     """
@@ -131,7 +142,8 @@ def get_monthly_data(stat, id, alg, params, spec, height,years):
                                   (data['Datetime'].dt.month == month)][spec.lower()].mean())
     
     monthly_data.append(month_avg)
-    
+    monthly_data_frame=pd.DataFrame(monthly_data)
+    monthly_data_frame.to_csv('./res_monthly_tables/monthly_avg_table_'+str(stat)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
     return monthly_data
 
 def get_daily_season_data(stat, id, alg, params, spec, height,season):
@@ -191,84 +203,38 @@ def get_daily_season_data(stat, id, alg, params, spec, height,season):
     daily_cycles.append(daily)
     
     return daily_cycles
-        
+
 def write_heatmap_table(stations, years, algo, spec):
-    config=ConfigParser()
-    alg = algo[0] # algorithm name
-    parameters = algo[1:len(algo)]
-    for par in parameters:
-        df = pd.DataFrame()
-        for stat in stations:
-            config.read('stations.ini') 
-            heights = config.get(stat, 'height' ).split(',')
-            species = config.get(stat, 'species').split(',')
-            ID      = config.get(stat, 'inst_ID').split(',')
-            stat = stat[0:3]
-            height = heights[-1] # get higher altitude
-            season = get_monthly_data(stat, ID[0], alg, [par], spec, height, years)
-            delta = pd.Series(season[0])-pd.Series(season[1])
-            delta.name = stat
-            df = pd.concat([df, delta.to_frame().T])
-        df.to_csv('./heatmap_tables/heatmap_table_'+str(alg)+'_'+str(par)+'_'+str(spec)+'.csv', sep = ' ')
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        x
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-            
-            
-            
-            
-            
-            
-            
-        
+        config=ConfigParser()
+        alg = algo[0] # algorithm name
+        parameters = algo[1:len(algo)]
+        for par in parameters:
+            print(alg, par)
+            df = pd.DataFrame()
+            for stat in stations:
+                config.read('stations.ini') 
+                heights = config.get(stat, 'height' ).split(',')
+                species = config.get(stat, 'species').split(',')
+                ID      = config.get(stat, 'inst_ID').split(',')
+                stat = stat[0:3]
+                height = heights[-1] # get higher altitude
+                if spec in species: # append row only if spec is in the species of the station in the ini-file. Otherwise can not open the file with (get_monthly_data)
+                    season = get_monthly_data(stat, ID[0], alg, [par], spec, height, years)
+                    delta = pd.Series(season[0])-pd.Series(season[1])
+                    delta.name = stat
+                #else:
+                #    delta = pd.Series(0, index=df.columns)
+                #    delta.name = stat
+                df = pd.concat([df, delta.to_frame().T])
+
+            df.to_csv('./heatmap_tables/heatmap_table_'+str(alg)+'_'+str(par)+'_'+str(spec)+'.csv', sep = ' ')
+
+
+
+
+
+
+
+
+
+

@@ -10,8 +10,120 @@ Created on Mon Nov  1 12:58:15 2021
 import numbers
 import numpy as np
 import matplotlib.pyplot as plt
+import spikes_formatting_functions as fmt
+import pandas as pd 
 
-
+def plot_BFOR_parameters(stat, inst_id, algorithms, spec, height):
+    
+    for i in range(len(algorithms)):
+        alg = algorithms[i][0] # read current algorithm name (REBS or SD)
+        params = algorithms[i][1:len(algorithms[i])] # get list of parameters
+        B  = np.empty(0)
+        H  = np.empty(0)
+        F  = np.empty(0)
+        OR = np.empty(0)
+        ORSS = np.empty(0)
+        stdev_logOR = np.empty(0)
+        min_a, min_b, min_c, min_d = 1E10,1E10,1E10,1E10
+        for param in params:
+            infile_spiked = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, height, spec, inst_id)+'_'+ alg +'_'+ param + '_spiked_PIQc'
+            frame = pd.read_csv(infile_spiked, sep=';')
+            forecast = 'spike_'+spec.lower()
+            observed = 'spike_'+spec.lower()+'_PIQc'
+            a = len(frame[ (frame[forecast]==True ) & (frame[observed]==True ) ])
+            b = len(frame[ (frame[forecast]==True ) & (frame[observed]==False) ])
+            c = len(frame[ (frame[forecast]==False) & (frame[observed]==True ) ])
+            d = len(frame[ (frame[forecast]==False) & (frame[observed]==False) ])
+            B  = np.append( B, (a+b)/(a+c))
+            H  = np.append( H, a/(a+c))
+            F  = np.append( F, b/(b+d))
+            err=0
+            if (b==0) | (c==0):
+                print(alg,param,'ZERO VALUE: b=',b,'c=',c)
+                OR =np.append( OR, np.nan)    
+                ORSS = np.append(ORSS, np.nan)
+                stdev_logOR = np.append(stdev_logOR,0)
+            else:
+                OR = np.append( OR, a*d/b/c)
+                ORSS = np.append(ORSS, (a*d-b*c)/(a*d+b*c))
+                if(a!=0) & (d!=0):
+                    stdev_logOR = np.append(stdev_logOR,(1/a + 1/b + 1/c + 1/d)**0.5)
+                else:
+                    stdev_logOR = np.append(stdev_logOR,0)
+                    print(alg,param,'ZERO VALUE: a=',a,'d=',d)
+                if (a<5) |(b<5) |(c<5) |(d<5):
+                    print(alg,param,'COUNT < 5:',a,b,c,d)
+                    OR[-1]=np.nan
+                    ORSS[-1]=np.nan
+                    err=1
+            logOR=np.log(OR)    
+            if a < min_a:
+                min_a=a
+            if b < min_b:
+                min_b=b
+            if c < min_c:
+                min_c=c
+            if d < min_d:
+                min_d=d
+        
+        # # plot parameters
+        fig, ax = plt.subplots(1,1)
+        fig.suptitle('Statistical parameters\nstation: '+stat+'  h='+str(height)+'   spec='+spec)
+        labels=[str(p) for p in params]
+        ax.plot(H, label='hit rate', color = 'C1', ls='--')
+        ax.plot(F, label='false alarm rate', color = 'C1', ls=':')
+        ax.plot(H-F, label = 'H-F', color='C1')
+        ax.plot(ORSS, label = 'ORSS', color = 'C3')
+        
+        ax.set_xticks(np.arange(0,len(params),1))
+        ax.set_xticklabels(labels)
+        ax.grid()
+        ax.legend(loc=[1.1,0.82])
+        # t=ax.text(1.3,  0.2, 'min a= '+str(min_a)+'\nmin b= '+str(min_b)+'\nmin c= '+str(min_c)+'\nmin d= '+str(min_d), horizontalalignment='center', size='large', color='black',transform=ax.transAxes)                                              
+        # t.set_bbox(dict(facecolor='grey', alpha=0.3))
+        ax.set_xlabel(alg)
+        ax.set_ylim(0,1.05)
+        if (min(ORSS)<0) & (min(ORSS)>-100):
+            ax.set_ylim(min(ORSS)-0.1,1.05)
+        
+        if spec=='CO':
+            if alg=='REBS':
+                ax.axvline(7,c='black',ls='--')  
+            elif alg=='SD':
+                ax.axvline(6,c='black',ls='--')
+        else:
+            if alg=='REBS':
+                ax.axvline(2,c='black',ls='--')  
+            elif alg=='SD':
+                ax.axvline(2,c='black',ls='--')
+        ax2 = ax.twinx()
+        ax2.plot(B, label = 'BIAS', color = 'C2')
+        #ax2.errorbar(np.arange(0,len(logOR),1), logOR, stdev_logOR,elinewidth=1, capsize =5, ls='none', fmt="o", color = 'C2', label = 'log OR')
+        ax2.axhline(1, c='C2',ls=':',lw=1)
+        ax2.tick_params('y',which='both', colors='C2')
+        ax2.legend(loc=[1.1,0.7])
+        if max(B)>10:
+            ax2.set_yscale('log')
+        plt.savefig('res_plot/'+stat+'/bfor_parameters/bfor_parameters_'+stat+'_'+spec+'_h'+str(height)+'_'+alg+'.pdf', format='pdf', bbox_inches="tight")
+        
+        # # plot ROC
+        # fig, ax = plt.subplots(1,1)
+        # fig.suptitle('ROC curve\nstation: '+stat+'  h='+str(height)+'   spec='+spec)
+        # f=np.arange(0,1,0.01)
+        # i=0
+        # for o in OR:
+        #     h = f*o/(1+(o-1)*f)
+        #     ax.plot(f,h, label = alg+' '+str(params[i]))
+        #     i=i+1
+        # ax.grid()
+        # ax.set_xlim(0,1)
+        # ax.set_ylim(0,1)
+        # ax.set_aspect('equal', adjustable='box')
+        # ax.legend(loc='lower right')
+        # ax.set_xlabel('false alarm rate')
+        # ax.set_ylabel('hit rate')
+        # plt.savefig('res_plot/'+stat+'/bfor_parameters/ROC_curve_'+stat+'_'+spec+'_h'+str(height)+'_'+alg+'.pdf', format='pdf')
+        
 def qqplot(x, y, height,    quantiles=None, interpolation='nearest', ax=None, rug=False, rug_length=0.05, rug_kwargs=None,  **kwargs):
     """Draw a quantile-quantile plot for `x` versus `y`.
 

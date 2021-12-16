@@ -7,6 +7,7 @@ Created on Tue Oct 26 12:02:42 2021
 @contact: c.fratticioli@isac.cnr.it
 """
 import matplotlib.pyplot as plt 
+import matplotlib.ticker as mtick
 import spikes_formatting_functions as fmt
 import spikes_data_selection_functions as sel
 import spikes_statistics as stats
@@ -15,7 +16,15 @@ from scipy.stats import scoreatpercentile
 import seaborn as sea
 import pandas as pd
 
-def plot_season_daily_cycle(stat, id, algorithms, spec, height):
+
+monthly_range_CO_dict  = {'SAC':[90,240], 'CMN':[90,150], 'IPR':[120,470], 'KIT':[100,300], 'JUS':[90,350], 'JFJ':[90,150],'PUI':[],'UTO':[80,170]}
+monthly_range_CO2_dict = {'SAC':[405,440], 'CMN':[400,425], 'IPR':[405,480], 'KIT':[405,480], 'JUS':[410,460], 'JFJ':[400,425],'PUI':[390,430],'UTO':[400,425]}
+monthly_range_CH4_dict = {'SAC':[1950,2050], 'CMN':[1900,2000], 'IPR':[1975,2150], 'KIT':[1950,2150], 'JUS':[1950,2100], 'JFJ':[1900,1975],'PUI':[1925,2030],'UTO':[1925,2025]}
+daily_range_CO2_dict = {'SAC':[410,430], 'CMN':[400,425], 'IPR':[410,450], 'KIT':[410,440], 'JUS':[400,450], 'JFJ':[400,420],'PUI':[400,430],'UTO':[400,430]}
+daily_range_CH4_dict = {'SAC':[1950,2050], 'CMN':[1930,1980], 'IPR':[1975,2150], 'KIT':[1950,2075], 'JUS':[1950,2100], 'JFJ':[1920,1955],'PUI':[1920,2010],'UTO':[1955,2010]}
+daily_range_CO_dict  = {'SAC':[90,180], 'CMN':[90,150], 'IPR':[100,400], 'KIT':[125,200], 'JUS':[90,260], 'JFJ':[100,130],'PUI':[],'UTO':[85,145]}
+
+def plot_season_daily_cycle(stat, id, algorithms, spec, height, log):
     """
     plot average daily time series. 
     Parameters
@@ -28,6 +37,8 @@ def plot_season_daily_cycle(stat, id, algorithms, spec, height):
         algorithms array defined in spikes.py
     height: str
          sampling height
+    log: bool
+         set log scale on delta plots
     Returns
     -------
     None.
@@ -35,31 +46,88 @@ def plot_season_daily_cycle(stat, id, algorithms, spec, height):
     """
     def plot_daily_cycle(season_data, ax, alg, params):
         non_spiked=np.array(season_data[-1])
+        min, max = 0, 0
         for j in range(len(season_data)-1):
-            ax[0].plot(np.array(season_data[j])-non_spiked, label = alg +' '+params[j])
+            delta = -non_spiked+np.array(season_data[j])
+            ax[0].plot(delta, label = alg +' '+params[j])
             ax[1].plot(np.array(season_data[j]), label = alg +' '+params[j])
+            minim, maxim = np.min(delta), np.max(delta)
+            if (minim < min):
+                min = minim
+            if (maxim>max):
+                max=maxim
+
+        if log:
+            if (spec == 'CO') |( spec =='CH4'):
+                mticks = [ 9,  8,  7,  6,  5,  4,  3,  2,-2,-3,-4,-5,-6,-7,-8,-9,-20,-30,-40,-50,-60,-70,-80,-90 ]
+                Mticks = [10, 1,  0, -1, -10, -100]
+                ax[0].axhline(-2, ls='--', c='r')
+                ax[0].axhline(2, ls='--', c='r')
+                linthresh=1
+                min = -100
+                max = 10
+
+            else:
+                mticks = [ 9,  8,  7,  6,  5,  4,  3,  2, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, -0.2, -0.4, -0.5, -0.6, -0.7, -0.8 ,-0.9, -2,-3,-4,-5,-6,-7,-8,-9 ]
+                Mticks = [10, 1,  0.1, 0, -0.1, -1, -10]
+                ax[0].axhline(-0.1, ls = '--', c='r')
+                ax[0].axhline(0.1, ls = '--', c='r')
+                linthresh=0.1
+                min = -10
+                max = 10
+
+
+            ax[0].set_yscale('symlog',linthresh=linthresh)
+            ax[0].set_yticks(Mticks)
+            ax[0].set_yticks(mticks, minor=True)
+
+            if max <0.1:
+                max = 0.1
+            ax[0].set_ylim(bottom = min*1.15)
+            ax[0].set_ylim(top = max*1.15)
+
+            ax[0].set_ylim(bottom = min*1.05)
+            ax[0].set_ylim(top = max*1.05)
+            # if spec == 'CO':
+            #     yrange = daily_range_CO_dict[stat]
+            #     ax[1].set_ylim(yrange[0], yrange[1])
+            # if spec == 'CO2':
+            #     yrange = daily_range_CO2_dict[stat]
+            #     ax[1].set_ylim(yrange[0], yrange[1])
+            # if spec == 'CH4':
+            #     yrange = daily_range_CH4_dict[stat]
+            #     ax[1].set_ylim(yrange[0], yrange[1])
+          
+
         ax[1].plot(non_spiked, label = 'non-spiked', c='black',ls='--')
         ax[0].set_ylabel('Concentration difference '+fmt.get_meas_unit(spec))
         ax[1].set_ylabel('Concentration '+fmt.get_meas_unit(spec))
         ax[1].legend(bbox_to_anchor=(1,1), loc="upper left")
         for a in ax:
-            a.grid()
+            a.grid(which = 'major')
             a.set_xticks(np.arange(0,24,2))
-
+        ax[0].grid(b=True, which='minor', linestyle='-', alpha=0.2)
     # array with season name (for filename and title name), months(used for data selection) and relative year (used in title name)
+    log_folder=''
+    log_suff  =''
     seasons = [('DJF',[12,3], ' 2019-2020'),('MAM',[3,6], ' 2020'),('JJA',[6,9], ' 2020'),('SON',[9,12], ' 2020') ]
     for season in seasons:
+        print(season[0])
         fig, ax = plt.subplots(2,2, figsize=(12,8))
         for i in range(len(algorithms)):
             alg = algorithms[i][0] # read current algorithm name (REBS or SD)
             params = algorithms[i][1:len(algorithms[i])] # get list of parameters
             season_day_data = sel.get_daily_season_data(stat, id, alg, params, spec, height,season[1])
             plot_daily_cycle(season_day_data, ax[i], alg, params)
+        if log:
+            log_folder = 'log/'
+            log_suff='_logscale'
+
         fig.suptitle("Daily mean cycle of concentration: absolute values and difference between non-spiked and spiked data\n"+spec+' at '+stat+' '+id+'   height=' + height + ' m   season='+season[0]+season[2])
-        plt.savefig('./res_plot/'+stat+'/daily_cycle/seasonal_daily_cycle_'+season[0]+'_'+stat+'_'+spec+'_'+id+'_h'+height+'.pdf', format='pdf', bbox_inches="tight")
+        plt.savefig('./res_plot/'+stat+'/daily_cycle/'+log_folder+'seasonal_daily_cycle_'+season[0]+'_'+stat+'_'+spec+'_'+id+'_h'+height+log_suff+'.pdf', format='pdf', bbox_inches="tight")
         plt.close(fig)
 
-def plot_season( stat,  id, algorithms, spec, height,years):
+def plot_season( stat,  id, algorithms, spec, height,years, log):
     """
     plot seasonal time series. I.E. montlhy median for different algorithms and parameters
     Parameters
@@ -75,33 +143,82 @@ def plot_season( stat,  id, algorithms, spec, height,years):
     None.
 
     """
-    
+
     def plot_monthly(monthly_data, ax, alg, params):
         non_spiked=np.array(monthly_data[-1])
+        min,max=0,0
         for j in range(len(monthly_data)-1):
-            ax[0].plot(np.array(monthly_data[j])-non_spiked, label = alg +' '+params[j])
+            delta = np.array(monthly_data[j])-non_spiked
+            ax[0].plot(delta, label = alg +' '+params[j])
             ax[1].plot(np.array(monthly_data[j]), label = alg +' '+params[j])
+            minim, maxim = np.min(delta), np.max(delta)
+            if (minim < min):
+                min = minim
+            if (maxim>max):
+                max=maxim
+        if log:
+            if (spec == 'CO') |( spec =='CH4'):
+#                mticks = [ 9,  8,  7,  6,  5,  4,  3,  2, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, -0.2, -0.4, -0.5, -0.6, -0.7, -0.8 ,-0.9,-2,-3,-4,-5,-6,-7,-8,-9,-20,-30,-40,-50,-60,-70,-80,-90 ]
+                mticks = [ 9,  8,  7,  6,  5,  4,  3,  2,-2,-3,-4,-5,-6,-7,-8,-9,-20,-30,-40,-50,-60,-70,-80,-90 ]
+                Mticks = [10, 1,  0, -1, -10, -100]
+                ax[0].axhline(-2, ls='--', c='r')
+                ax[0].axhline(2, ls='--', c='r')
+                min = -100
+                max = 10
+                linthresh=1
+            else:
+                mticks = [ 9,  8,  7,  6,  5,  4,  3,  2, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, -0.2, -0.4, -0.5, -0.6, -0.7, -0.8 ,-0.9, -2,-3,-4,-5,-6,-7,-8,-9 ]
+                Mticks = [10, 1,  0.1, 0, -0.1, -1, -10]
+                ax[0].axhline(-0.1, ls = '--', c='r')
+                ax[0].axhline(0.1, ls = '--', c='r')
+                min = -10
+                max = 10
+                linthresh=0.1
+            ax[0].set_yscale('symlog',linthresh=linthresh)
+            ax[0].set_yticks(Mticks)
+            ax[0].set_yticks(mticks, minor = True)
+
+
+            ax[0].set_ylim(bottom = min*1.05)
+            ax[0].set_ylim(top = max*1.05)
+            # if spec == 'CO':
+            #     yrange = monthly_range_CO_dict[stat]
+            #     ax[1].set_ylim(yrange[0], yrange[1])
+            # if spec == 'CO2':
+            #     yrange = monthly_range_CO2_dict[stat]
+            #     ax[1].set_ylim(yrange[0], yrange[1])
+            # if spec == 'CH4':
+            #     yrange = monthly_range_CH4_dict[stat]
+            #     ax[1].set_ylim(yrange[0], yrange[1])
+            
         ax[1].plot(non_spiked, label = 'non-spiked', c='black',ls='--')
         ax[0].set_ylabel('Concentration difference '+fmt.get_meas_unit(spec))
         ax[1].set_ylabel('Concentration '+fmt.get_meas_unit(spec))
         ax[1].legend(bbox_to_anchor=(1,1), loc="upper left")
 
         for a in ax:
-            a.grid()
-            a.set_xticks(np.arange(1,24,2))
+            a.grid(which='major')
+            a.set_xticks(np.arange(0,23,2))
             #months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-            labels = ['Feb\n\'19','Apr\n\'19','Jun\n\'19','Aug\n\'19','Oct\n\'19','Dec\n\'19','Feb\n\'20','Apr\n\'20','Jun\n\'20','Aug\n\'20','Oct\n\'20','Dec\n\'20']
+            labels = ['Jan\n\'19','Mar\n\'19','May\n\'19','Jul\n\'19','Sep\n\'19','Nov\n\'19','Jan\n\'20','Mar\n\'20','May\n\'20','Jul\n\'20','Sep\n\'20','Nov\n\'20']
             a.set_xticklabels(labels)
-        #ax.plot(monthly_data[-1], label = 'no selection') # plot non-spiked data
+        ax[0].grid(b=True, which='minor', linestyle='-', alpha=0.2)
 
+    log_folder=''
+    log_suff  =''
     fig, ax = plt.subplots(2,2, figsize=(12,8))
     for i in range(len(algorithms)):
         alg = algorithms[i][0] # read current algorithm name (REBS or SD)
         params = algorithms[i][1:len(algorithms[i])] # get list of parameters
         monthly_data = sel.get_monthly_data(stat, id, alg, params, spec, height,years)
         plot_monthly(monthly_data, ax[i], alg, params)
+
+    if log:
+        log_folder = 'log/'
+        log_suff='_logscale'
+
     fig.suptitle("Monthly mean concrentration: absolute values and difference between non-spiked and spiked data\n"+spec+' at '+stat+' '+id+'   height=' + height + ' m')
-    plt.savefig('./res_plot/'+stat+'/monthly_mean/monthly_mean_'+stat+'_'+spec+'_'+id+'_h'+height+'.pdf', format='pdf', bbox_inches="tight")
+    plt.savefig('./res_plot/'+stat+'/monthly_mean/'+log_folder+'monthly_mean_'+stat+'_'+spec+'_'+id+'_h'+height+log_suff+'.pdf', format='pdf', bbox_inches="tight")
     plt.close(fig)
 
 def plot_sd_histo(data, stat,  id, alg, param, spec, heights):
@@ -495,8 +612,7 @@ def plot_sd_qqplot(data, stat, id, alg, param, spec, heights):
     plt.savefig(file_path+'qqplot/qqplot_'+file_suff[0:len(file_suff)-4] +'_'+alg+'_'+param+'.pdf', format='pdf')
     plt.close(fig)
 
-def plot_heatmap_monthly_diff(algo_names, algos):
-    species = ['CO2', 'CH4', 'CO']
+def plot_heatmap_monthly_diff(algo_names, algos, species):
     center = [-0.1,-2,-1] # WMO limits for colormaps
     labels = ['','','','','','','','','','','','','','','','','','','','','','','','']
 

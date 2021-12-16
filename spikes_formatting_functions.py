@@ -10,6 +10,19 @@ import pandas as pd
 from configparser import ConfigParser
 import spikes_data_selection_functions as sel
 import datetime as dt
+from os import path
+
+analyzed_months_dict = {'PUI': ['2019-1', '2020-6'], 'JUS':['2019-7','2020-3'], 'UTO':['2019-4', '2020-6'], 'CMN':['2019-9','2020-8']}
+
+# IPR: APR 2019, JUL 2020, FEB 2020.
+# JFJ: APR 2019, JUL 2020, NOV 2020.
+# KIT: MAR 2019 (Inst: 489), JUL19 (Inst: 458)
+# SAC (Inst 395): JUL 2019, MAR 2020
+# JUS: JUL 2019, MAR 2020
+# UTO: APR 2019, JUN 2020
+# CMN: SEP 2019, NOV 2020, AUG 2020
+
+
 
 def get_month_str(month_number):
     """ get month string from a given month number """
@@ -167,6 +180,49 @@ def read_L1_ICOS(station, height, specie, inst_ID):
 
     return out_frame
 
+def read_L1_ICOS_PIQc(station, height, specie, inst_ID):
+    """ 
+    get file path and file name and read L1 ICOS data after PIQc returning a dataframe 
+        Parameters
+    ----------
+    station : str
+        station name with upper case. e.g. 'CMN', 'SAC'
+    height : str
+        sampling height above ground with one zero after the point: e.g 60.0
+    specie : str
+        chemicas specie with upper case e.g. 'CO', 'CH4'
+    inst_ID: str
+        instrument id
+    Returns
+    -------
+    out_frame: DataFrame
+        frame with read data
+
+    """
+    file_path = './data-minute-spiked-PIQc/'+station + '-MinuteDataAfterPIQc/'
+    file_name = get_L1_file_name(station, height, specie, inst_ID)
+    # ####  get header nlines  ####
+    file = open(file_path+file_name, 'r')
+    for i in range(5): 
+        line = file.readline() # read the 5th line to get the header lines number
+    head_nlines = int(line.split(' ')[3]) # get the number of header lines
+    file.close()
+    # #### #### #### #### #### ####
+    ucols = ['Year','Month','Day','Hour','Minute','Flag','ManualDescriptiveFlag'] # cols to be read
+    out_frame = pd.read_csv(file_path+file_name, 
+                            sep=';', 
+                            skiprows = head_nlines-1,
+                            usecols=ucols,
+                            converters ={'ManualDescriptiveFlag': str}
+                            )
+    insert_datetime_col(out_frame, pos=1, Y='Year',M='Month',D='Day',h='Hour',m='Minute') # insert datetime
+
+    out_frame = out_frame[(out_frame['Flag']!='N')&
+                          (out_frame['Flag']!='K')&
+                          (out_frame['Flag']!='H')] # retain only data that are flagged as valid
+
+    return out_frame
+
 def read_spike_file(method, parameter, station, height, inst_ID):
 
     file_path = get_spike_file_path(method, parameter)
@@ -224,7 +280,68 @@ def write_spiked_file(stations, alg, param):
                     out_frame.sort_values(by='Datetime', inplace=True)
                     out_filename = './data-minute-spiked/' + stat +'/' + get_L1_file_name(stat, h, spec, inst_id)+'_'+ alg +'_'+ param + '_spiked' # write "spiked" dataframe on file
                     out_frame.to_csv(out_filename, sep=';', index=False)
+
+def add_PIQc_column(stations, alg, param):
+    """
+    add the column with the results of spike detection by PIs to the spiked data
+    
+    Parameters
+    ----------
+    stations : list
+        list of string containing the stations names in upper case.
+    alg: str
+        spike algorithm name ('SD' or 'REBS')
+    param: str
+        value of the algorithm param. 
+    Returns
+    -------
+    None.
+    """
+    config = ConfigParser()
+    for stat in stations:
+        config.read('stations.ini')
+        heights = config.get(stat, 'height' ).split(',')
+        species = config.get(stat, 'species').split(',')
+        ID      = config.get(stat, 'inst_ID').split(',')
+        stat=stat[0:3] # used to read also ini file with KIT_CO that is used to read CO data at KIT. In fact CO data use different instruments and a different station has to be defined in the ini file
+        for inst_id in ID:
+            more_inst_id = inst_id.split('+') # used to read one datafile for each instrument and provide a single output file            
+            for h in heights:
+                for spec in species: 
+                    print(stat, inst_id, alg, param, spec, h)
+                    frame_spiked=pd.DataFrame()
+                    #for id in more_inst_id:
+                    infile_spiked = './data-minute-spiked/' + stat +'/' + get_L1_file_name(stat, h, spec, inst_id)+'_'+ alg +'_'+ param + '_spiked' # write "spiked" dataframe on file
+                    frame_spiked = frame_spiked.append(pd.read_csv(infile_spiked, sep=';'))
+                    
+                    frame_spiked['Datetime'] = pd.to_datetime(frame_spiked['Datetime'])
+                    frame_PIQc_sel = pd.DataFrame()
+                    if not path.exists(infile_spiked + '_PIQc'): # avoid reprocessing already processed data
+                        analyzed_months = analyzed_months_dict[stat]
+
+                        frame_PIQc = pd.DataFrame() 
                         
+                        for id in more_inst_id:  # read from multiple instrument stations
+                            frame_PIQc = frame_PIQc.append(read_L1_ICOS_PIQc(station=stat, height=h, specie=spec, inst_ID=id))
+                        frame_PIQc.sort_values(by='Datetime', inplace=True)
+                        
+                        for month_str in analyzed_months: # select only analyzed months
+                            year  = int(month_str.split('-')[0])
+                            month = int(month_str.split('-')[1])
+                            month_frame = frame_PIQc[(frame_PIQc['Datetime'].dt.year == year) & 
+                                                     (frame_PIQc['Datetime'].dt.month == month)]
+                            frame_PIQc_sel=frame_PIQc_sel.append(month_frame, ignore_index=True)
+           
+                        if len(frame_PIQc_sel) > 0: 
+                            sel.add_spike_cols_PIQc(frame_PIQc_sel, spec)
+                            frame_double_spiked = frame_spiked.merge(frame_PIQc_sel[['Datetime', 'spike_'+spec.lower()+'_PIQc']], on='Datetime', how ='inner')
+                            out_filename = infile_spiked + '_PIQc'
+                            frame_double_spiked.to_csv(out_filename, sep=';', index=False)
+                        else:
+                            print('no data found')
+                    else:
+                        print('data already processed')
+                    
 def check_id_height(df, id, height):
     
     print('checking')
