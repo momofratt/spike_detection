@@ -16,10 +16,9 @@ import spikes_data_selection_functions as sel
 import spikes_statistics as stats
 
 #stations = ['SAC', 'CMN', 'IPR', 'KIT_CO', 'KIT', 'JUS', 'JFJ','PUI','UTO']
-stations=['JUS','CMN','UTO','PUI']
-#stations = ['UTO']
-#stations = ['IPR', 'SAC', 'CMN']
-#stations = ['KIT_CO']
+#stations=['JUS','CMN','UTO','PUI']
+#stations = ['SAC','KIT_CO', 'KIT','PUI']
+stations = ['CMN', 'JUS', 'JFJ','UTO']
 years = [2019,2020]
 config=ConfigParser()
 algorithms = [['SD', '0.1', '0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0'],
@@ -106,17 +105,17 @@ for stat in stations:
                     #                               heights=heights)
 
         #### #### plot seasonal cycle #### #### 
-        # for spec in species:
-        #     for h in heights:
-        #         print('plot season and daily cycle', id, spec, h)
-        #         splt.plot_season(stat, id, algorithms, spec, h, years, log=True)
-        #         splt.plot_season_daily_cycle(stat, id, algorithms, spec, h, log=True)
-        
-        #### #### manual flag analysis #### #### 
         for spec in species:
             for h in heights:
-                print('manual flag analysis', id, spec, h)
-                stats.plot_BFOR_parameters(stat, id, algorithms, spec, h)
+                print('plot season and daily cycle', id, spec, h)
+                splt.plot_season(stat, id, algorithms, spec, h, years, log=True)
+                # splt.plot_season_daily_cycle(stat, id, algorithms, spec, h, log=True)
+        
+        #### #### manual flag analysis #### #### 
+        # for spec in species:
+        #     for h in heights:
+        #         print('manual flag analysis', id, spec, h)
+        #         stats.plot_BFOR_parameters(stat, id, algorithms, spec, h)
 
 #### #### heatmap #### ###
 #species = ['CO2', 'CH4', 'CO']

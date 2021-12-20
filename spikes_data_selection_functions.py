@@ -121,30 +121,65 @@ def get_monthly_data(stat, id, alg, params, spec, height,years):
     monthly data: 2D list of float
         each list contains the montlhy mean values for the selected parameter
         the last list is referred to no-spiked data
-
+    monthly_data_diff: 2D list of float
+        each list contains the montlhy mean difference between spiked and non-spiked data for the selected parameter
+        the mean monthly difference is computed by averaging the hourly differences of the whole month
     """
+    
+    for year in years:
+       in_filename = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, height, spec, id) +'_'+alg+'_'+params[0]+ '_spiked'
+       data = pd.read_csv(in_filename, sep=';', parse_dates=['Datetime'] )  # read dataframe with spiked data
+
+       for month in range(1,13): # get dataframe with non-spiked hourly mean
+            month_frame = data[(data['Datetime'].dt.year == year) &    
+                               (data['Datetime'].dt.month == month)][['Datetime', spec.lower()]]
+            month_frame.index = month_frame['Datetime']
+            del month_frame['Datetime']
+            month_frame_hourly = month_frame.resample('H').mean()
+    
     monthly_data = []
+    monthly_data_diff = []
     for param in params: # loop over parameter values
         in_filename = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, height, spec, id) +'_'+alg+'_'+param+ '_spiked'
         data = pd.read_csv(in_filename, sep=';', parse_dates=['Datetime'] )  # read dataframe with spiked data
         month_avg = []
+        month_diff = []
         for year in years:
             for month in range(1,13):    
                 month_avg.append(data[(data['Datetime'].dt.year == year) &
                                       (data['Datetime'].dt.month == month) &
                                       (data['spike_'+spec.lower()]==False)][spec.lower()].mean())
+                # evaluate hourly mean difference between spiked and non-spiked data
+                month_frame = data[(data['Datetime'].dt.year == year) &    
+                                   (data['Datetime'].dt.month == month)][['Datetime', spec.lower()]] # read non-spiked data
+                month_frame.index = month_frame['Datetime']
+                del month_frame['Datetime']
+                month_frame_hourly = month_frame.resample('H').mean() # evaluate hourly mean
+                
+                month_frame_spiked = data[(data['Datetime'].dt.year == year) &
+                                      (data['Datetime'].dt.month == month) &
+                                      (data['spike_'+spec.lower()]==False)][['Datetime', spec.lower()]] #read spiked data
+                month_frame_spiked.index = month_frame_spiked['Datetime']
+                del month_frame_spiked['Datetime']
+                month_frame_hourly_spiked = month_frame_spiked.resample('H').mean() # evaluate hourly mean
+                
+                month_frame_hourly_diff = month_frame_hourly_spiked[spec.lower()] - month_frame_hourly[spec.lower()]
+                month_diff.append(month_frame_hourly_diff.mean())
+                
         monthly_data.append(month_avg)
-    
+        monthly_data_diff.append(month_diff)
+        
     month_avg = []
     for year in years:
        for month in range(1,13): # append last list with no spiked data (no selection on data['spike_'+spec.lower()]==False performed)
             month_avg.append(data[(data['Datetime'].dt.year == year) &    
                                   (data['Datetime'].dt.month == month)][spec.lower()].mean())
+            
     
     monthly_data.append(month_avg)
     monthly_data_frame=pd.DataFrame(monthly_data)
     monthly_data_frame.to_csv('./res_monthly_tables/monthly_avg_table_'+str(stat)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
-    return monthly_data
+    return monthly_data, monthly_data_diff
 
 def get_daily_season_data(stat, id, alg, params, spec, height,season):
     """

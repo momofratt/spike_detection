@@ -144,11 +144,13 @@ def plot_season( stat,  id, algorithms, spec, height,years, log):
 
     """
 
-    def plot_monthly(monthly_data, ax, alg, params):
+    def plot_monthly(monthly_data, monthly_data_diff, ax, alg, params):
+                
         non_spiked=np.array(monthly_data[-1])
         min,max=0,0
-        for j in range(len(monthly_data)-1):
-            delta = np.array(monthly_data[j])-non_spiked
+        for j in range(len(monthly_data_diff)):
+            # delta = np.array(monthly_data[j])-non_spiked
+            delta = np.array(monthly_data_diff[j])
             ax[0].plot(delta, label = alg +' '+params[j])
             ax[1].plot(np.array(monthly_data[j]), label = alg +' '+params[j])
             minim, maxim = np.min(delta), np.max(delta)
@@ -210,8 +212,8 @@ def plot_season( stat,  id, algorithms, spec, height,years, log):
     for i in range(len(algorithms)):
         alg = algorithms[i][0] # read current algorithm name (REBS or SD)
         params = algorithms[i][1:len(algorithms[i])] # get list of parameters
-        monthly_data = sel.get_monthly_data(stat, id, alg, params, spec, height,years)
-        plot_monthly(monthly_data, ax[i], alg, params)
+        monthly_data, monthly_data_diff = sel.get_monthly_data(stat, id, alg, params, spec, height,years)
+        plot_monthly(monthly_data, monthly_data_diff, ax[i], alg, params)
 
     if log:
         log_folder = 'log/'
