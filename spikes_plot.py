@@ -44,12 +44,13 @@ def plot_season_daily_cycle(stat, id, algorithms, spec, height, log):
     None.
 
     """
-    def plot_daily_cycle(season_data, ax, alg, params):
+    def plot_daily_cycle(season_data, season_data_diff, ax, alg, params):
         non_spiked=np.array(season_data[-1])
         min, max = 0, 0
         for j in range(len(season_data)-1):
             delta = -non_spiked+np.array(season_data[j])
-            ax[0].plot(delta, label = alg +' '+params[j])
+            #ax[0].plot(delta, label = alg +' '+params[j])
+            ax[0].plot(season_data_diff[j], label = alg +' '+params[j])
             ax[1].plot(np.array(season_data[j]), label = alg +' '+params[j])
             minim, maxim = np.min(delta), np.max(delta)
             if (minim < min):
@@ -97,7 +98,7 @@ def plot_season_daily_cycle(stat, id, algorithms, spec, height, log):
             # if spec == 'CH4':
             #     yrange = daily_range_CH4_dict[stat]
             #     ax[1].set_ylim(yrange[0], yrange[1])
-          
+
 
         ax[1].plot(non_spiked, label = 'non-spiked', c='black',ls='--')
         ax[0].set_ylabel('Concentration difference '+fmt.get_meas_unit(spec))
@@ -117,8 +118,8 @@ def plot_season_daily_cycle(stat, id, algorithms, spec, height, log):
         for i in range(len(algorithms)):
             alg = algorithms[i][0] # read current algorithm name (REBS or SD)
             params = algorithms[i][1:len(algorithms[i])] # get list of parameters
-            season_day_data = sel.get_daily_season_data(stat, id, alg, params, spec, height,season[1])
-            plot_daily_cycle(season_day_data, ax[i], alg, params)
+            season_day_data, season_day_data_diff = sel.get_daily_season_data(stat, id, alg, params, spec, height,season[1])
+            plot_daily_cycle(season_day_data, season_day_data_diff, ax[i], alg, params)
         if log:
             log_folder = 'log/'
             log_suff='_logscale'
@@ -145,7 +146,7 @@ def plot_season( stat,  id, algorithms, spec, height,years, log):
     """
 
     def plot_monthly(monthly_data, monthly_data_diff, ax, alg, params):
-                
+
         non_spiked=np.array(monthly_data[-1])
         min,max=0,0
         for j in range(len(monthly_data_diff)):
@@ -192,7 +193,7 @@ def plot_season( stat,  id, algorithms, spec, height,years, log):
             # if spec == 'CH4':
             #     yrange = monthly_range_CH4_dict[stat]
             #     ax[1].set_ylim(yrange[0], yrange[1])
-            
+
         ax[1].plot(non_spiked, label = 'non-spiked', c='black',ls='--')
         ax[0].set_ylabel('Concentration difference '+fmt.get_meas_unit(spec))
         ax[1].set_ylabel('Concentration '+fmt.get_meas_unit(spec))
