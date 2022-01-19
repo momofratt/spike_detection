@@ -15,7 +15,9 @@ import numpy as np
 from scipy.stats import scoreatpercentile
 import seaborn as sea
 import pandas as pd
-
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
+from spikes_statistics import min_ampl_dict
 
 monthly_range_CO_dict  = {'SAC':[90,240], 'CMN':[90,150], 'IPR':[120,470], 'KIT':[100,300], 'JUS':[90,350], 'JFJ':[90,150],'PUI':[],'UTO':[80,170]}
 monthly_range_CO2_dict = {'SAC':[405,440], 'CMN':[400,425], 'IPR':[405,480], 'KIT':[405,480], 'JUS':[410,460], 'JFJ':[400,425],'PUI':[390,430],'UTO':[400,425]}
@@ -118,7 +120,7 @@ def plot_season_daily_cycle(stat, id, algorithms, spec, height, log):
         for i in range(len(algorithms)):
             alg = algorithms[i][0] # read current algorithm name (REBS or SD)
             params = algorithms[i][1:len(algorithms[i])] # get list of parameters
-            season_day_data, season_day_data_diff = sel.get_daily_season_data(stat, id, alg, params, spec, height,season[1])
+            season_day_data, season_day_data_diff = sel.get_daily_season_data(stat, id, alg, params, spec, height,season[1],season[0])
             plot_daily_cycle(season_day_data, season_day_data_diff, ax[i], alg, params)
         if log:
             log_folder = 'log/'
@@ -539,7 +541,7 @@ def plot_conc_event(df, stat,  id, alg, param, spec, heights, ev):
     heights: list
         list of string with different sampling heights
     ev: list 
-        list of datetime objects containing start and end date for the gien event
+        list of datetime objects containing start and end date for the given event
     Returns
     -------
     None.
@@ -588,7 +590,143 @@ def plot_conc_event(df, stat,  id, alg, param, spec, heights, ev):
             plt.savefig(file_path + 'events/'+date_str+'/'+spec+ '/event_conc_' +str(start_date.day)+'-'+str(start_date.month)+'-'+str(start_date.year)+'_'+ alg+'_'+param+'_'+file_suff,format='pdf')
             plt.close(fig)
             
+def plot_conc_event_PIQc(df, stat,  id, alg, param, spec, heights, ev, mode, quant):
+    """
+    plot concentration for a single event
 
+    Parameters
+    ----------
+    df: list of Dataframes
+        data to be plotted. If len(data)>1 then more graphs are plotted.
+    stat, spec, id: str
+        details for station name, instrument id, chemical specie from the ini file
+    heights: list
+        list of string with different sampling heights
+    ev: list 
+        list of datetime objects containing start and end date for the given event
+    mode: str
+        'single' or 'distr' . Choose wether to define "high" spikes according to difference of each point rescpect to the baseline or to the quartiles of the difference distribution
+    quant: float
+        quantile to evaluate the threshold for high spikes               
+    Returns
+    -------
+    None.
+    """
+
+    def plot_ax_time(ax, data, height):
+        ax.scatter(data['Datetime'], data[spec.lower()],s=.2, c='black')
+
+        spike_frame = data[data['spike_'+spec.lower()+'_PIQc']==True]
+        ax.scatter(spike_frame['Datetime'], spike_frame[spec.lower()],s=.2, c='red')
+        
+        min_diff = stats.get_threshold(data, spec, mode, quant)
+        high_spike_frame = data[ data['spike_amplitude_'+spec.lower()+'_PIQc']>min_diff ]
+        ax.scatter(high_spike_frame['Datetime'], high_spike_frame[spec.lower()],s=.2, c='chartreuse')
+
+        ax.plot(data['Datetime'], data[spec.lower()+'_rolling_mean'], ls='-', lw=.5)
+        ax.grid()
+        ax.set_ylabel(spec.lower()+' '+fmt.get_meas_unit(spec))
+        t=ax.text(0.5,  0.9, height+' m', horizontalalignment='center', size='large', color='black',transform=ax.transAxes)                                              
+        t.set_bbox(dict(facecolor='grey', alpha=0.3))
+
+    start_date = ev[0]
+    end_date   = ev[1]
+    file_path, file_suff, _ = fmt.format_file_plot_names(stat, spec, id)
+    titlenm = spec +' at '+stat +' ' +id
+    n_ax = len(df) #number of required axis
+    if len(df[0])>0:
+        sel_heights = [] # selected heights for plotting (i.e. heights with non-emply datasets)
+        sel_df = []
+        event_df = [] # dataframe to store selected events from df
+        for i in range(len(df)): 
+            event_df.append(df[i][(df[i]['Datetime']>=start_date) & (df[i]['Datetime']<=end_date)]) # select event
+            if len(event_df[i])==0: # reduce number of axis in case of empty dataset
+                n_ax=n_ax-1
+            else:
+                sel_heights.append(heights[i]) # add height[i] to selected heights if dataset at haight[i] is non-empty
+                sel_df.append(event_df[i]) # add event_df[i] to selected dataframes 
+
+        if n_ax>0: #plot only if at least one non-empty dataset is present
+            print(stat, id, spec, ev[0], ev[1])
+
+            fig, ax = plt.subplots(n_ax, 1, figsize = (5,4*n_ax))
+            fig.suptitle(titlenm + '    PIQc\nEVENT ' +  str(ev[0]) + ' - ' + str(ev[1]) )
+
+            if n_ax>1: # plot multiplt heights on single figure
+                for i in range(n_ax):
+                    plot_ax_time(ax[i], sel_df[i], sel_heights[i])
+            else: # plot single height
+                 plot_ax_time(ax, sel_df[0], sel_heights[0])
+
+            fig.autofmt_xdate()
+            plt.savefig(file_path + 'events/PIQc/event_conc_' +str(start_date.day)+'-'+str(start_date.month)+'-'+str(start_date.year)+'_PIQc_'+file_suff,format='pdf')
+            plt.close(fig)
+
+def plot_conc_event_PIQc_plotly(df, stat,  id, alg, param, spec, heights, ev, mode, quant):
+    """
+    plot concentration for a single event
+
+    Parameters
+    ----------
+    df: list of Dataframes
+        data to be plotted. If len(data)>1 then more graphs are plotted.
+    stat, spec, id: str
+        details for station name, instrument id, chemical specie from the ini file
+    heights: list
+        list of string with different sampling heights
+    ev: list 
+        list of datetime objects containing start and end date for the given event
+    mode: str
+        'single' or 'distr' . Choose wether to define "high" spikes according to difference of each point rescpect to the baseline or to the quartiles of the difference distribution
+    quant: float
+        quantile to evaluate the threshold for high spikes 
+    Returns
+    -------
+    None.
+    """
+            
+    def plot_ax_time(row, fig, data, height):
+        fig.add_trace( go.Scatter(x=data['Datetime'], y=data[spec.lower()], mode = "lines",  line = {'color' : 'cornflowerblue'}), row=row, col=1)
+        fig.add_trace( go.Scatter(x=data['Datetime'], y=data[spec.lower()+'_rolling_mean'], mode = "lines", line = {'color' : 'blue'}), row=row, col=1)
+
+        spike_frame = data[data['spike_'+spec.lower()+'_PIQc']==True]
+        fig.add_trace( go.Scatter(x=spike_frame['Datetime'], y=spike_frame[spec.lower()], mode = "markers", marker={'color':'red'}), row=row, col=1)
+
+        min_diff = stats.get_threshold(data, spec, mode, quant)
+        high_spike_frame = data[ data['spike_amplitude_'+spec.lower()+'_PIQc']>min_diff ]
+        fig.add_trace( go.Scatter(x=high_spike_frame['Datetime'], y=high_spike_frame[spec.lower()], mode = "markers", marker={'color':'green'}), row=row, col=1)
+
+#        ax.set_ylabel(spec.lower()+' '+fmt.get_meas_unit(spec))
+#        t=ax.text(0.5,  0.9, height+' m', horizontalalignment='center', size='large', color='black',transform=ax.transAxes)                                              
+#        t.set_bbox(dict(facecolor='grey', alpha=0.3))
+        
+    start_date = ev[0]
+    end_date   = ev[1]
+    file_path, file_suff, _ = fmt.format_file_plot_names(stat, spec, id)
+    titlenm = spec +' at '+stat +' ' +id
+    n_ax = len(df) #number of required axis
+    if len(df[0])>0:
+        sel_heights = [] # selected heights for plotting (i.e. heights with non-emply datasets)
+        sel_df = []
+        event_df = [] # dataframe to store selected events from df
+        for i in range(len(df)): 
+            event_df.append(df[i][(df[i]['Datetime']>=start_date) & (df[i]['Datetime']<=end_date)]) # select event
+            if len(event_df[i])==0: # reduce number of axis in case of empty dataset
+                n_ax=n_ax-1
+            else:
+                sel_heights.append(heights[i]) # add height[i] to selected heights if dataset at haight[i] is non-empty
+                sel_df.append(event_df[i]) # add event_df[i] to selected dataframes 
+
+        if n_ax>0: #plot only if at least one non-empty dataset is present
+            print(stat, id, spec, ev[0], ev[1])
+            
+            fig = make_subplots(rows=n_ax, cols=1)
+            fig.update_layout(title_text=titlenm + '    PIQc\nEVENT ' +  str(ev[0]) + ' - ' + str(ev[1]))            
+            for i in range(n_ax):
+                plot_ax_time(i+1, fig, sel_df[i], sel_heights[i])
+
+            fig.write_html(file_path + 'events/PIQc/event_conc_' +str(start_date.day)+'-'+str(start_date.month)+'-'+str(start_date.year)+'_PIQc_'+file_suff[0:-4]+'.html')
+            
 
 def plot_sd_qqplot(data, stat, id, alg, param, spec, heights):   
 

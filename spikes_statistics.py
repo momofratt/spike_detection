@@ -13,8 +13,33 @@ import matplotlib.pyplot as plt
 import spikes_formatting_functions as fmt
 import pandas as pd 
 
-def plot_BFOR_parameters(stat, inst_id, algorithms, spec, height):
-    
+min_ampl_dict = {'CO2': 0.5, 'CO':2, 'CH4': 2}
+
+def plot_BFOR_parameters(stat, inst_id, algorithms, spec, height, high_spikes, high_spikes_mode, quant):
+    """
+    plot results from statistical analysis of PIQc and automatic flagging
+    Parameters
+    ----------
+    stat : str
+        station name.
+    inst_id : str
+        instrument id.
+    algorithms : 2D list
+        list containing algorithms names and parameters values.
+    spec : str
+        specie.
+    height : str
+        sampling height.
+    high_spikes : bool
+        enable/disable analysis of "high" spikes.
+    high_spikes_mode: str
+        'single' or 'distr' . Choose wether to define "high" spikes according to difference of each point rescpect to the baseline or to the quartiles of the difference distribution
+    quant: float
+        quantile to evaluate the threshold for high spikes
+    Returns
+    -------
+    None.
+    """
     for i in range(len(algorithms)):
         alg = algorithms[i][0] # read current algorithm name (REBS or SD)
         params = algorithms[i][1:len(algorithms[i])] # get list of parameters
@@ -26,10 +51,20 @@ def plot_BFOR_parameters(stat, inst_id, algorithms, spec, height):
         stdev_logOR = np.empty(0)
         min_a, min_b, min_c, min_d = 1E10,1E10,1E10,1E10
         for param in params:
-            infile_spiked = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, height, spec, inst_id)+'_'+ alg +'_'+ param + '_spiked_PIQc'
+            infile_spiked = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, height, spec, inst_id)+'_'+ alg +'_'+ param + '_spiked_PIQc_mean'
             frame = pd.read_csv(infile_spiked, sep=';')
-            forecast = 'spike_'+spec.lower()
-            observed = 'spike_'+spec.lower()+'_PIQc'
+
+            if high_spikes:
+               frame = add_high_spikes_col(frame, spec, high_spikes_mode, quant)
+               observed = 'high_spike_'+spec.lower()+'_PIQc' # observed spikes
+               high_spikes_str  = ' - high spikes (>'+str(min_ampl_dict[spec])+' '+fmt.get_meas_unit(spec)+')'
+               high_spikes_suff = '_high'
+            else:
+               high_spikes_str  = ''
+               high_spikes_suff = ''
+               observed = 'spike_'+spec.lower()+'_PIQc' # observed spikes
+            forecast = 'spike_'+spec.lower() # forecasted spikes
+
             a = len(frame[ (frame[forecast]==True ) & (frame[observed]==True ) ])
             b = len(frame[ (frame[forecast]==True ) & (frame[observed]==False) ])
             c = len(frame[ (frame[forecast]==False) & (frame[observed]==True ) ])
@@ -65,16 +100,16 @@ def plot_BFOR_parameters(stat, inst_id, algorithms, spec, height):
                 min_c=c
             if d < min_d:
                 min_d=d
-        
+
         # # plot parameters
         fig, ax = plt.subplots(1,1)
-        fig.suptitle('Statistical parameters\nstation: '+stat+'  h='+str(height)+'   spec='+spec)
+        fig.suptitle('Statistical parameters\nstation: '+stat+'  h='+str(height)+'   spec='+spec+high_spikes_str)
         labels=[str(p) for p in params]
         ax.plot(H, label='hit rate', color = 'C1', ls='--')
         ax.plot(F, label='false alarm rate', color = 'C1', ls=':')
         ax.plot(H-F, label = 'H-F', color='C1')
         ax.plot(ORSS, label = 'ORSS', color = 'C3')
-        
+
         ax.set_xticks(np.arange(0,len(params),1))
         ax.set_xticklabels(labels)
         ax.grid()
@@ -85,7 +120,7 @@ def plot_BFOR_parameters(stat, inst_id, algorithms, spec, height):
         ax.set_ylim(0,1.05)
         if (min(ORSS)<0) & (min(ORSS)>-100):
             ax.set_ylim(min(ORSS)-0.1,1.05)
-        
+
         if spec=='CO':
             if alg=='REBS':
                 ax.axvline(7,c='black',ls='--')  
@@ -104,8 +139,14 @@ def plot_BFOR_parameters(stat, inst_id, algorithms, spec, height):
         ax2.legend(loc=[1.1,0.7])
         if max(B)>10:
             ax2.set_yscale('log')
-        plt.savefig('res_plot/'+stat+'/bfor_parameters/bfor_parameters_'+stat+'_'+spec+'_h'+str(height)+'_'+alg+'.pdf', format='pdf', bbox_inches="tight")
-        
+
+        # write infos on spike percentage
+        stat_text = 'PIQc spikes = '+str(round((a+c)/(a+b+c+d)*100,2))+'%'
+        t1=ax.text(1.05,  0.05, stat_text, horizontalalignment='left', size='large', color='black',transform=ax.transAxes)
+        t1.set_bbox(dict(facecolor='tan', alpha=0.3))
+
+        plt.savefig('res_plot/'+stat+'/bfor_parameters/bfor_parameters_'+stat+'_'+spec+'_h'+str(height)+'_'+alg+high_spikes_suff+'.pdf', format='pdf', bbox_inches="tight")
+
         # # plot ROC
         # fig, ax = plt.subplots(1,1)
         # fig.suptitle('ROC curve\nstation: '+stat+'  h='+str(height)+'   spec='+spec)
@@ -123,7 +164,23 @@ def plot_BFOR_parameters(stat, inst_id, algorithms, spec, height):
         # ax.set_xlabel('false alarm rate')
         # ax.set_ylabel('hit rate')
         # plt.savefig('res_plot/'+stat+'/bfor_parameters/ROC_curve_'+stat+'_'+spec+'_h'+str(height)+'_'+alg+'.pdf', format='pdf')
-        
+ 
+    
+def get_threshold(df, spec, mode, quant):
+    if mode =='single':
+        min_diff = min_ampl_dict[spec] 
+    elif mode =='distr':
+        min_diff = df[df['spike_'+spec.lower()+'_PIQc']]['spike_amplitude_'+spec.lower()+'_PIQc'].quantile(q=quant) # set the quantile as min difference
+    else:
+        print('unknown high_spikes_mode')        
+    return min_diff
+
+def add_high_spikes_col(df, spec, mode, quant):
+    df.insert(len(df.columns),'high_spike_'+spec.lower()+'_PIQc',False)
+    min_diff = get_threshold(df, spec, mode, quant)
+    df.loc[df['spike_amplitude_'+spec.lower()+'_PIQc'] > min_diff, 'high_spike_'+spec.lower()+'_PIQc'] = True
+    return df
+    
 def qqplot(x, y, height,    quantiles=None, interpolation='nearest', ax=None, rug=False, rug_length=0.05, rug_kwargs=None,  **kwargs):
     """Draw a quantile-quantile plot for `x` versus `y`.
 

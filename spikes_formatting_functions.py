@@ -10,6 +10,7 @@ import pandas as pd
 from configparser import ConfigParser
 import spikes_data_selection_functions as sel
 import datetime as dt
+import numpy as np
 from os import path
 
 analyzed_months_dict = {'PUI': ['2019-1', '2020-6'], 'JUS':['2019-7','2020-3'], 'UTO':['2019-4', '2020-6'], 'CMN':['2019-9','2020-8']}
@@ -268,7 +269,7 @@ def write_spiked_file(stations, alg, param):
                 for spec in species: 
                     out_frame=pd.DataFrame()
                     print(stat, inst_id, alg, param, spec, h)
-                    for id in more_inst_id:  # loop over different instrument. For each instrument merge the respective spike frame, then append all the frame in a single frame
+                    for id in more_inst_id:  # loop over different instrument. For each instrument merge the respective spike frame, then append all the frames in a single frame
                         spike_frame = read_spike_file(alg, param, stat.upper(), h, id)
                         sel.add_spike_cols(spike_frame, [spec.lower()])
                         ####### to be improved:
@@ -284,7 +285,7 @@ def write_spiked_file(stations, alg, param):
 def add_PIQc_column(stations, alg, param):
     """
     add the column with the results of spike detection by PIs to the spiked data
-    
+
     Parameters
     ----------
     stations : list
@@ -313,25 +314,28 @@ def add_PIQc_column(stations, alg, param):
                     #for id in more_inst_id:
                     infile_spiked = './data-minute-spiked/' + stat +'/' + get_L1_file_name(stat, h, spec, inst_id)+'_'+ alg +'_'+ param + '_spiked' # write "spiked" dataframe on file
                     frame_spiked = frame_spiked.append(pd.read_csv(infile_spiked, sep=';'))
-                    
+
                     frame_spiked['Datetime'] = pd.to_datetime(frame_spiked['Datetime'])
                     frame_PIQc_sel = pd.DataFrame()
                     if not path.exists(infile_spiked + '_PIQc'): # avoid reprocessing already processed data
                         analyzed_months = analyzed_months_dict[stat]
 
                         frame_PIQc = pd.DataFrame() 
-                        
+
                         for id in more_inst_id:  # read from multiple instrument stations
                             frame_PIQc = frame_PIQc.append(read_L1_ICOS_PIQc(station=stat, height=h, specie=spec, inst_ID=id))
                         frame_PIQc.sort_values(by='Datetime', inplace=True)
-                        
+
                         for month_str in analyzed_months: # select only analyzed months
                             year  = int(month_str.split('-')[0])
                             month = int(month_str.split('-')[1])
                             month_frame = frame_PIQc[(frame_PIQc['Datetime'].dt.year == year) & 
                                                      (frame_PIQc['Datetime'].dt.month == month)]
+                            if (stat=='PUI') & (year==2020) & (month==6):
+                               print('reducing PUI 06/2020 days')
+                               month_frame = month_frame[month_frame['Datetime'].dt.day < 15]
                             frame_PIQc_sel=frame_PIQc_sel.append(month_frame, ignore_index=True)
-           
+
                         if len(frame_PIQc_sel) > 0: 
                             sel.add_spike_cols_PIQc(frame_PIQc_sel, spec)
                             frame_double_spiked = frame_spiked.merge(frame_PIQc_sel[['Datetime', 'spike_'+spec.lower()+'_PIQc']], on='Datetime', how ='inner')
@@ -341,7 +345,48 @@ def add_PIQc_column(stations, alg, param):
                             print('no data found')
                     else:
                         print('data already processed')
-                    
+
+def add_PIQc_high_spikes_column(stations, alg, param):
+    """
+    add the column with the "high" spikes detected by PIs. high spikes are defined according to the difference respect to the baseline
+    the baseline is obtained by a running average (over 1 hour?) 
+
+    Parameters
+    ----------
+    stations : list
+        list of string containing the stations names in upper case.
+    alg: str
+        spike algorithm name ('SD' or 'REBS')
+    param: str
+        value of the algorithm param. 
+    Returns
+    -------
+    None.
+    """
+    config = ConfigParser()
+    for stat in stations:
+        config.read('stations.ini')
+        heights = config.get(stat, 'height' ).split(',')
+        species = config.get(stat, 'species').split(',')
+        ID      = config.get(stat, 'inst_ID').split(',')
+        stat=stat[0:3] # used to read also ini file with KIT_CO that is used to read CO data at KIT. In fact CO data use different instruments and a different station has to be defined in the ini file
+        for inst_id in ID:
+            more_inst_id = inst_id.split('+') # used to read one datafile for each instrument and provide a single output file            
+            for h in heights:
+                for spec in species: 
+                    print(stat, inst_id, alg, param, spec, h)
+                    #for id in more_inst_id:
+                    infile_spiked = './data-minute-spiked/' + stat +'/' + get_L1_file_name(stat, h, spec, inst_id)+'_'+ alg +'_'+ param + '_spiked_PIQc'
+                    frame_spiked = pd.read_csv(infile_spiked, sep=';')
+                    frame_spiked['Datetime'] = pd.to_datetime(frame_spiked['Datetime'])
+                    frame_spiked = frame_spiked.set_index('Datetime')
+                    frame_spiked.insert(len(frame_spiked.columns),spec.lower()+'_rolling_mean', round(frame_spiked[spec.lower()].rolling('1H', center=True).mean(),3) )
+                    frame_spiked.insert(len(frame_spiked.columns),'spike_amplitude_'+spec.lower()+'_PIQc', np.nan)
+                    frame_spiked['spike_amplitude_'+spec.lower()+'_PIQc'] = frame_spiked[spec.lower()] - frame_spiked[spec.lower()+'_rolling_mean']
+                    frame_spiked.loc[ frame_spiked['spike_'+spec.lower()+'_PIQc']==False, 'spike_amplitude_'+spec.lower()+'_PIQc'] = 0
+
+                    frame_spiked.to_csv(infile_spiked+'_mean',sep=';')
+
 def check_id_height(df, id, height):
     
     print('checking')
