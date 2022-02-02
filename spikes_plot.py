@@ -686,16 +686,16 @@ def plot_conc_event_PIQc_plotly(df, stat,  id, alg, param, spec, heights, ev, mo
     """
             
     def plot_ax_time(row, fig, data, height):
-        fig.add_trace( go.Scatter(x=data['Datetime'], y=data[spec.lower()], mode = "lines",  line = {'color' : 'cornflowerblue'}), row=row, col=1)
-        fig.add_trace( go.Scatter(x=data['Datetime'], y=data[spec.lower()+'_rolling_mean'], mode = "lines", line = {'color' : 'blue'}), row=row, col=1)
+        fig.add_trace( go.Scatter(x=data['Datetime'], y=data[spec.lower()], mode = "lines",  line = {'color' : 'cornflowerblue'}, name = '1-min data'), row=row, col=1)
+        fig.add_trace( go.Scatter(x=data['Datetime'], y=data[spec.lower()+'_rolling_mean'], mode = "lines", line = {'color' : 'blue'}, name = 'baseline'), row=row, col=1)
 
         spike_frame = data[data['spike_'+spec.lower()+'_PIQc']==True]
-        fig.add_trace( go.Scatter(x=spike_frame['Datetime'], y=spike_frame[spec.lower()], mode = "markers", marker={'color':'red'}), row=row, col=1)
+        fig.add_trace( go.Scatter(x=spike_frame['Datetime'], y=spike_frame[spec.lower()], mode = "markers", marker={'color':'red'}, name='low spikes'), row=row, col=1)
 
         min_diff = stats.get_threshold(data, spec, mode, quant)
         high_spike_frame = data[ data['spike_amplitude_'+spec.lower()+'_PIQc']>min_diff ]
-        fig.add_trace( go.Scatter(x=high_spike_frame['Datetime'], y=high_spike_frame[spec.lower()], mode = "markers", marker={'color':'green'}), row=row, col=1)
-
+        fig.add_trace( go.Scatter(x=high_spike_frame['Datetime'], y=high_spike_frame[spec.lower()], mode = "markers", marker={'color':'green'}, name='high spikes'), row=row, col=1)
+        fig.update_layout(font={'size':25})
 #        ax.set_ylabel(spec.lower()+' '+fmt.get_meas_unit(spec))
 #        t=ax.text(0.5,  0.9, height+' m', horizontalalignment='center', size='large', color='black',transform=ax.transAxes)                                              
 #        t.set_bbox(dict(facecolor='grey', alpha=0.3))
