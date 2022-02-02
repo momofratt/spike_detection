@@ -148,7 +148,6 @@ def plot_season( stat,  id, algorithms, spec, height,years, log):
     """
 
     def plot_monthly(monthly_data, monthly_data_diff, ax, alg, params):
-
         non_spiked=np.array(monthly_data[-1])
         min,max=0,0
         for j in range(len(monthly_data_diff)):
@@ -225,7 +224,102 @@ def plot_season( stat,  id, algorithms, spec, height,years, log):
     fig.suptitle("Monthly mean concrentration: absolute values and difference between non-spiked and spiked data\n"+spec+' at '+stat+' '+id+'   height=' + height + ' m')
     plt.savefig('./res_plot/'+stat+'/monthly_mean/'+log_folder+'monthly_mean_'+stat+'_'+spec+'_'+id+'_h'+height+log_suff+'.pdf', format='pdf', bbox_inches="tight")
     plt.close(fig)
+    
+def plot_season_boxplot(stations, algorithms, spec, height, years, log):
+    """
+    plot seasonal boxplots of monthly mean differences respect to non spiked data 
+    Parameters
+    ----------
+    stat, spec: str
+        details for stations names, instrument id, chemical specie from the ini file
+    algorithms: list of str
+        algorithms array defined in spikes.py
+    height: str
+         sampling height
+    Returns
+    -------
+    None.
 
+    """
+
+    def plot_monthly(monthly_data_diff, ax, stat, column,alg, params):
+        min,max=0,0        
+        for j in range(len(params)):
+            # delta = np.array(monthly_data[j])-non_spiked
+            delta = np.array(monthly_data_diff[j])
+            minim, maxim = np.min(delta), np.max(delta)
+            if (minim < min):
+                min = minim
+            if (maxim>max):
+                max=maxim
+        ax.boxplot(monthly_data_diff[0], positions = [1-0.1], widths=[0.1])
+        ax.boxplot(monthly_data_diff[3], positions = [1], widths=[0.1])
+        ax.boxplot(monthly_data_diff[5], positions = [1+0.1], widths=[0.1])
+        if log:
+            if (spec == 'CO') |( spec =='CH4'):
+#                mticks = [ 9,  8,  7,  6,  5,  4,  3,  2, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, -0.2, -0.4, -0.5, -0.6, -0.7, -0.8 ,-0.9,-2,-3,-4,-5,-6,-7,-8,-9,-20,-30,-40,-50,-60,-70,-80,-90 ]
+                mticks = [ 9,  8,  7,  6,  5,  4,  3,  2,-2,-3,-4,-5,-6,-7,-8,-9,-20,-30,-40,-50,-60,-70,-80,-90 ]
+                Mticks = [10, 1,  0, -1, -10, -100]
+                ax.axhline(-2, ls='--', c='r')
+                ax.axhline(2, ls='--', c='r')
+                min = -100
+                max = 10
+                linthresh=1
+            else:
+                mticks = [ 9,  8,  7,  6,  5,  4,  3,  2, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, -0.2, -0.4, -0.5, -0.6, -0.7, -0.8 ,-0.9, -2,-3,-4,-5,-6,-7,-8,-9 ]
+                Mticks = [10, 1,  0.1, 0, -0.1, -1, -10]
+                ax.axhline(-0.1, ls = '--', c='r')
+                ax.axhline(0.1, ls = '--', c='r')
+                min = -10
+                max = 10
+                linthresh=0.1
+            ax.set_yscale('symlog',linthresh=linthresh)
+            ax.set_yticks(Mticks)
+            ax.set_yticks(mticks, minor = True)
+            ax.set_ylim(bottom = min*1.05)
+            ax.set_ylim(top = max*1.05)
+            if column>0:
+                ax.set_yticklabels(['','','','','','',''])  
+            ax.set_xticklabels(['',stat,''])
+            # if spec == 'CO':
+            #     yrange = monthly_range_CO_dict[stat]
+            #     ax[1].set_ylim(yrange[0], yrange[1])
+            # if spec == 'CO2':
+            #     yrange = monthly_range_CO2_dict[stat]
+            #     ax[1].set_ylim(yrange[0], yrange[1])
+            # if spec == 'CH4':
+            #     yrange = monthly_range_CH4_dict[stat]
+            #     ax[1].set_ylim(yrange[0], yrange[1])
+        if column<1: 
+            ax.set_ylabel('Concentration difference '+fmt.get_meas_unit(spec))
+        ax.legend(bbox_to_anchor=(1,1), loc="upper left")
+
+        # for a in ax:
+        #     a.grid(which='major')
+        #     a.set_xticks(np.arange(0,23,2))
+        #     #months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+        #     labels = ['Jan\n\'19','Mar\n\'19','May\n\'19','Jul\n\'19','Sep\n\'19','Nov\n\'19','Jan\n\'20','Mar\n\'20','May\n\'20','Jul\n\'20','Sep\n\'20','Nov\n\'20']
+        #     a.set_xticklabels(labels)
+        ax.grid(b=True, which='minor', linestyle='-', alpha=0.2)
+
+    fig, ax = plt.subplots(len(algorithms),len(stations), figsize=(12,8)) 
+    fig.subplots_adjust(hspace=.5, wspace=0)
+    for i in range(len(algorithms)):
+        alg = algorithms[i][0] # read current algorithm name (REBS or SD)
+        params = algorithms[i][1:len(algorithms[i])] # get list of parameters
+        for j in range(len(stations)):
+            monthly_data, monthly_data_diff = sel.get_monthly_data(stations[j], id, alg, params, spec, height[j], years)
+            plot_monthly(monthly_data_diff, ax[i][j], stations[j], j, alg, params)
+
+    if log:
+        log_suff='_logscale'
+    else:
+        log_suff  =''
+
+    fig.suptitle("Monthly mean concrentration: difference between non-spiked and spiked data\n")
+    plt.savefig('./res_plot/monthly_mean_boxplots/monthly_mean_box'+log_suff+'.pdf', format='pdf', bbox_inches="tight")
+    plt.close(fig)
+    
 def plot_sd_histo(data, stat,  id, alg, param, spec, heights):
     """
     plot histogram 
