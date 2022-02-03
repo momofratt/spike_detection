@@ -8,6 +8,7 @@ Created on Tue Oct 26 12:02:42 2021
 """
 import matplotlib.pyplot as plt 
 import matplotlib.ticker as mtick
+import matplotlib.patches as mpatches
 import spikes_formatting_functions as fmt
 import spikes_data_selection_functions as sel
 import spikes_statistics as stats
@@ -266,32 +267,18 @@ def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
     nboxplots = len(algorithms[0])-1 #number of boxplots to be plotted
 
     def plot_monthly(monthly_data_diff, ax, stat, column,alg, params, indexes):
-        min,max=0,0        
-        for j in range(len(params)):
-            # delta = np.array(monthly_data[j])-non_spiked
-            delta = np.array(monthly_data_diff[j])
-            minim, maxim = np.min(delta), np.max(delta)
-            if (minim < min):
-                min = minim
-            if (maxim>max):
-                max=maxim
+        monthly_data_diff = np.array(monthly_data_diff)
+        count_xtick = 0 # counter to center the xtick
         for i in indexes:
             width = 0.05
             #ax.boxplot(monthly_data_diff[i], positions = [1-(0.5*nboxplots-i)*0.1],widths=[width], patch_artist=True, notch=True)
-            #print(monthly_data_diff[i])
-            ax.violinplot(monthly_data_diff[i][monthly_data_diff[i]!=0], positions = [1 - (0.5*nboxplots)*0.07+i*0.07+0.035], widths=[width])
-            
-        # ax.violinplot(monthly_data_diff[0], positions = [1-0.1], widths=[0.1])
-        # ax.violinplot(monthly_data_diff[3], positions = [1], widths=[0.1])
-        # ax.violinplot(monthly_data_diff[5], positions = [1+0.1], widths=[0.1])
-        # # ax.boxplot(monthly_data_diff[0], positions = [1-0.1], widths=[0.1], patch_artist=True, notch=True)
-        # ax.boxplot(monthly_data_diff[3], positions = [1], widths=[0.1],     patch_artist=True, notch=True)
-        # ax.boxplot(monthly_data_diff[5], positions = [1+0.1], widths=[0.1], patch_artist=True, notch=True)
-        
+            ax.violinplot(monthly_data_diff[i][monthly_data_diff[i]!=0], positions = [1 - (0.5*nboxplots)*0.07+count_xtick*0.07+0.035], widths=[width])
+            count_xtick+=1
+       
         if log:
             if (spec == 'CO') |( spec =='CH4'):
                 # mticks = [ 9,  8,  7,  6,  5,  4,  3,  2, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, -0.2, -0.4, -0.5, -0.6, -0.7, -0.8 ,-0.9,-2,-3,-4,-5,-6,-7,-8,-9,-20,-30,-40,-50,-60,-70,-80,-90 ]
-                mticks = [ 9, 8, 7, 6, 5, 4, 3, 2, 20, 30, 40, 50, 60, 70, 80, 90 ]
+                mticks = [ 0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.2,0.3,0.4,0.5,0.6,0.7,0.8, 0.9, 9, 8, 7, 6, 5, 4, 3, 2, 20, 30, 40, 50, 60, 70, 80, 90 ]
                 Mticks = [ 0, 0.1, 1, 10, 100 ]
                 #ax.axhline(-2, ls='--', c='r')
                 ax.axhline(2, ls='--', c='r')
@@ -299,7 +286,7 @@ def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
                 max = 100
                
             else:
-                mticks = [ 0.2, 0.4, 0.5, 0.6, 0.7, 0.8 ,0.9, 2, 3, 4, 5, 6, 7, 8, 9 ]
+                mticks = [ 0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09, 0.2, 0.4, 0.5, 0.6, 0.7, 0.8 ,0.9, 2, 3, 4, 5, 6, 7, 8, 9 ]
                 Mticks = [ 0, 0.01, 0.1, 1, 10]
                 #ax.axhline(-0.1, ls = '--', c='r')
                 ax.axhline(0.1, ls = '--', c='r')
@@ -332,27 +319,9 @@ def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
         ax.set_xticks([1])
         ax.set_xticklabels([stat])
         
-       
-
-            # if spec == 'CO':
-            #     yrange = monthly_range_CO_dict[stat]
-            #     ax[1].set_ylim(yrange[0], yrange[1])
-            # if spec == 'CO2':
-            #     yrange = monthly_range_CO2_dict[stat]
-            #     ax[1].set_ylim(yrange[0], yrange[1])
-            # if spec == 'CH4':
-            #     yrange = monthly_range_CH4_dict[stat]
-            #     ax[1].set_ylim(yrange[0], yrange[1])
         if column<1: 
             ax.set_ylabel('Concentration difference '+fmt.get_meas_unit(spec))
-        ax.legend(bbox_to_anchor=(1,1), loc="upper left")
 
-        # for a in ax:
-        #     a.grid(which='major')
-        #     a.set_xticks(np.arange(0,23,2))
-        #     #months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-        #     labels = ['Jan\n\'19','Mar\n\'19','May\n\'19','Jul\n\'19','Sep\n\'19','Nov\n\'19','Jan\n\'20','Mar\n\'20','May\n\'20','Jul\n\'20','Sep\n\'20','Nov\n\'20']
-        #     a.set_xticklabels(labels)
         ax.grid(b=True, which='minor', linestyle='-', alpha=0.2)
 
     fig, ax = plt.subplots(len(algorithms),len(stations), figsize=(12,8)) 
@@ -364,13 +333,23 @@ def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
         for j in range(len(stations)):
             monthly_data, monthly_data_diff = sel.get_monthly_data(stations[j], IDs[j], alg, params, spec, height[j], years)
             monthly_data_diff = np.array(monthly_data_diff)
-            #plot_monthly( -monthly_data_diff, ax[i][j], stations[j], j, alg, params, indexes)
+            plot_monthly( -monthly_data_diff, ax[i][j], stations[j], j, alg, params, indexes)
 
     if log:
         log_suff='_logscale'
     else:
         log_suff  =''
+    
+    # define legends for violin plots
+    pops0 = []
+    pops1 = []
+    for i in range(len(params)):
+        pops0.append(  mpatches.Patch(color='C'+str(i), alpha=0.5, label=algorithms[0][0]+' '+algorithms[0][i+1]))
+        pops1.append(  mpatches.Patch(color='C'+str(i), alpha=0.5, label=algorithms[1][0]+' '+algorithms[0][i+1]))
 
+    ax[0][-1].legend(handles=pops0, bbox_to_anchor=(1,1), loc="upper left")   
+    ax[1][-1].legend(handles=pops1, bbox_to_anchor=(1,1), loc="upper left")   
+    
     fig.suptitle("Monthly mean concrentration: difference between non-spiked and spiked data\n")
     plt.savefig('./res_plot/monthly_mean_boxplots/monthly_mean_box_'+spec+log_suff+'.pdf', format='pdf', bbox_inches="tight")
     plt.close(fig)
