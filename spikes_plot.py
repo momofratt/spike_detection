@@ -26,6 +26,28 @@ daily_range_CO2_dict = {'SAC':[410,430], 'CMN':[400,425], 'IPR':[410,450], 'KIT'
 daily_range_CH4_dict = {'SAC':[1950,2050], 'CMN':[1930,1980], 'IPR':[1975,2150], 'KIT':[1950,2075], 'JUS':[1950,2100], 'JFJ':[1920,1955],'PUI':[1920,2010],'UTO':[1955,2010]}
 daily_range_CO_dict  = {'SAC':[90,180], 'CMN':[90,150], 'IPR':[100,400], 'KIT':[125,200], 'JUS':[90,260], 'JFJ':[100,130],'PUI':[],'UTO':[85,145]}
 
+
+
+def get_indexes_for_monthly_boxplot(alg, params):
+    """ get index for a given algorithm and parameter"""
+    
+    all_algorithms = [['SD', '0.1', '0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0'],
+                      ['REBS', '1', '2', '3', '4', '5', '6', '7', '8', '9']]
+    indexes=[]
+    for algo in all_algorithms:
+        if algo[0]!=alg:
+            pass
+        else:
+            all_params = algo[1:-1]
+            for par in params:
+                i = 0
+                for all_par in all_params:
+                    if par==all_par:
+                        indexes.append(i)
+                    i+=1
+    print('indexes',alg, indexes)
+    return indexes
+
 def plot_season_daily_cycle(stat, id, algorithms, spec, height, log):
     """
     plot average daily time series. 
@@ -225,7 +247,7 @@ def plot_season( stat,  id, algorithms, spec, height,years, log):
     plt.savefig('./res_plot/'+stat+'/monthly_mean/'+log_folder+'monthly_mean_'+stat+'_'+spec+'_'+id+'_h'+height+log_suff+'.pdf', format='pdf', bbox_inches="tight")
     plt.close(fig)
     
-def plot_season_boxplot(stations, algorithms, spec, height, years, log):
+def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
     """
     plot seasonal boxplots of monthly mean differences respect to non spiked data 
     Parameters
@@ -234,15 +256,16 @@ def plot_season_boxplot(stations, algorithms, spec, height, years, log):
         details for stations names, instrument id, chemical specie from the ini file
     algorithms: list of str
         algorithms array defined in spikes.py
-    height: str
-         sampling height
+    height: list
+         list of heights for the different stations
     Returns
     -------
     None.
 
     """
+    nboxplots = len(algorithms[0])-1 #number of boxplots to be plotted
 
-    def plot_monthly(monthly_data_diff, ax, stat, column,alg, params):
+    def plot_monthly(monthly_data_diff, ax, stat, column,alg, params, indexes):
         min,max=0,0        
         for j in range(len(params)):
             # delta = np.array(monthly_data[j])-non_spiked
@@ -252,35 +275,65 @@ def plot_season_boxplot(stations, algorithms, spec, height, years, log):
                 min = minim
             if (maxim>max):
                 max=maxim
-        ax.boxplot(monthly_data_diff[0], positions = [1-0.1], widths=[0.1])
-        ax.boxplot(monthly_data_diff[3], positions = [1], widths=[0.1])
-        ax.boxplot(monthly_data_diff[5], positions = [1+0.1], widths=[0.1])
+        for i in indexes:
+            width = 0.05
+            #ax.boxplot(monthly_data_diff[i], positions = [1-(0.5*nboxplots-i)*0.1],widths=[width], patch_artist=True, notch=True)
+            #print(monthly_data_diff[i])
+            ax.violinplot(monthly_data_diff[i][monthly_data_diff[i]!=0], positions = [1 - (0.5*nboxplots)*0.07+i*0.07+0.035], widths=[width])
+            
+        # ax.violinplot(monthly_data_diff[0], positions = [1-0.1], widths=[0.1])
+        # ax.violinplot(monthly_data_diff[3], positions = [1], widths=[0.1])
+        # ax.violinplot(monthly_data_diff[5], positions = [1+0.1], widths=[0.1])
+        # # ax.boxplot(monthly_data_diff[0], positions = [1-0.1], widths=[0.1], patch_artist=True, notch=True)
+        # ax.boxplot(monthly_data_diff[3], positions = [1], widths=[0.1],     patch_artist=True, notch=True)
+        # ax.boxplot(monthly_data_diff[5], positions = [1+0.1], widths=[0.1], patch_artist=True, notch=True)
+        
         if log:
             if (spec == 'CO') |( spec =='CH4'):
-#                mticks = [ 9,  8,  7,  6,  5,  4,  3,  2, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, -0.2, -0.4, -0.5, -0.6, -0.7, -0.8 ,-0.9,-2,-3,-4,-5,-6,-7,-8,-9,-20,-30,-40,-50,-60,-70,-80,-90 ]
-                mticks = [ 9,  8,  7,  6,  5,  4,  3,  2,-2,-3,-4,-5,-6,-7,-8,-9,-20,-30,-40,-50,-60,-70,-80,-90 ]
-                Mticks = [10, 1,  0, -1, -10, -100]
-                ax.axhline(-2, ls='--', c='r')
+                # mticks = [ 9,  8,  7,  6,  5,  4,  3,  2, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, -0.2, -0.4, -0.5, -0.6, -0.7, -0.8 ,-0.9,-2,-3,-4,-5,-6,-7,-8,-9,-20,-30,-40,-50,-60,-70,-80,-90 ]
+                mticks = [ 9, 8, 7, 6, 5, 4, 3, 2, 20, 30, 40, 50, 60, 70, 80, 90 ]
+                Mticks = [ 0, 0.1, 1, 10, 100 ]
+                #ax.axhline(-2, ls='--', c='r')
                 ax.axhline(2, ls='--', c='r')
-                min = -100
-                max = 10
-                linthresh=1
+                min = 0.01
+                max = 100
+               
             else:
-                mticks = [ 9,  8,  7,  6,  5,  4,  3,  2, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, -0.2, -0.4, -0.5, -0.6, -0.7, -0.8 ,-0.9, -2,-3,-4,-5,-6,-7,-8,-9 ]
-                Mticks = [10, 1,  0.1, 0, -0.1, -1, -10]
-                ax.axhline(-0.1, ls = '--', c='r')
+                mticks = [ 0.2, 0.4, 0.5, 0.6, 0.7, 0.8 ,0.9, 2, 3, 4, 5, 6, 7, 8, 9 ]
+                Mticks = [ 0, 0.01, 0.1, 1, 10]
+                #ax.axhline(-0.1, ls = '--', c='r')
                 ax.axhline(0.1, ls = '--', c='r')
-                min = -10
+                min = 0.001
                 max = 10
-                linthresh=0.1
-            ax.set_yscale('symlog',linthresh=linthresh)
-            ax.set_yticks(Mticks)
-            ax.set_yticks(mticks, minor = True)
-            ax.set_ylim(bottom = min*1.05)
-            ax.set_ylim(top = max*1.05)
-            if column>0:
-                ax.set_yticklabels(['','','','','','',''])  
-            ax.set_xticklabels(['',stat,''])
+            ax.set_yscale('log')
+
+        else:
+            if (spec == 'CO') |( spec =='CH4'):
+                # mticks = [ 9,  8,  7,  6,  5,  4,  3,  2, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, -0.2, -0.4, -0.5, -0.6, -0.7, -0.8 ,-0.9,-2,-3,-4,-5,-6,-7,-8,-9,-20,-30,-40,-50,-60,-70,-80,-90 ]
+                mticks = [ 2, 3, 4, 5, 6, 7, 8, 9 ]
+                Mticks = [ 0, 1, 5, 10, 20 ]
+                ax.axhline(2, ls='--', c='r')
+                #ax.axhline(2, ls='--', c='r')
+                min = 0
+                max = 10
+            else:
+                mticks = [ 0.2, 0.4, 0.5, 0.6, 0.7, 0.8 ,0.9  ]
+                Mticks = [ 0, 0.1, 1, 2, 3]
+                ax.axhline(0.1, ls = '--', c='r')
+                #ax.axhline(0.1, ls = '--', c='r')
+                min = 0
+                max = 3
+        ax.set_yticks(Mticks)
+        ax.set_yticks(mticks, minor = True)
+        ax.set_ylim(bottom = min)
+        ax.set_ylim(top = max)
+        if column>0:
+            ax.set_yticklabels(['','','','',''])  
+        ax.set_xticks([1])
+        ax.set_xticklabels([stat])
+        
+       
+
             # if spec == 'CO':
             #     yrange = monthly_range_CO_dict[stat]
             #     ax[1].set_ylim(yrange[0], yrange[1])
@@ -307,9 +360,11 @@ def plot_season_boxplot(stations, algorithms, spec, height, years, log):
     for i in range(len(algorithms)):
         alg = algorithms[i][0] # read current algorithm name (REBS or SD)
         params = algorithms[i][1:len(algorithms[i])] # get list of parameters
+        indexes = get_indexes_for_monthly_boxplot(alg, params)
         for j in range(len(stations)):
-            monthly_data, monthly_data_diff = sel.get_monthly_data(stations[j], id, alg, params, spec, height[j], years)
-            plot_monthly(monthly_data_diff, ax[i][j], stations[j], j, alg, params)
+            monthly_data, monthly_data_diff = sel.get_monthly_data(stations[j], IDs[j], alg, params, spec, height[j], years)
+            monthly_data_diff = np.array(monthly_data_diff)
+            #plot_monthly( -monthly_data_diff, ax[i][j], stations[j], j, alg, params, indexes)
 
     if log:
         log_suff='_logscale'
@@ -317,7 +372,7 @@ def plot_season_boxplot(stations, algorithms, spec, height, years, log):
         log_suff  =''
 
     fig.suptitle("Monthly mean concrentration: difference between non-spiked and spiked data\n")
-    plt.savefig('./res_plot/monthly_mean_boxplots/monthly_mean_box'+log_suff+'.pdf', format='pdf', bbox_inches="tight")
+    plt.savefig('./res_plot/monthly_mean_boxplots/monthly_mean_box_'+spec+log_suff+'.pdf', format='pdf', bbox_inches="tight")
     plt.close(fig)
     
 def plot_sd_histo(data, stat,  id, alg, param, spec, heights):
