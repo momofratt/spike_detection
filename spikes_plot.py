@@ -9,6 +9,7 @@ Created on Tue Oct 26 12:02:42 2021
 import matplotlib.pyplot as plt 
 import matplotlib.ticker as mtick
 import matplotlib.patches as mpatches
+
 import spikes_formatting_functions as fmt
 import spikes_data_selection_functions as sel
 import spikes_statistics as stats
@@ -379,6 +380,64 @@ def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
     plt.savefig('./res_plot/monthly_mean_boxplots/monthly_mean_box_'+spec+log_suff+'.pdf', format='pdf', bbox_inches="tight")
     plt.close(fig)
     
+    
+    
+def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, height, years, log):
+    """
+    plot seasonal boxplots of monthly mean differences respect to non spiked data 
+    Parameters
+    ----------
+    stat, spec: str
+        details for stations names, instrument id, chemical specie from the ini file
+    algorithms: list of str
+        algorithms array defined in spikes.py
+    height: list
+         list of heights for the different stations
+    Returns
+    -------
+    None.
+
+    """
+
+    for i in range(len(algorithms)):
+        alg = algorithms[i][0] # read current algorithm name (REBS or SD)
+        params = algorithms[i][1:len(algorithms[i])] # get list of parameters
+        indexes = get_indexes_for_monthly_boxplot(alg, params)
+        
+        fig = go.Figure()
+        
+       
+        monthly_data_diff_all_stat = []
+        for j in range(len(stations)):
+            monthly_data, monthly_data_diff = sel.get_monthly_data(stations[j], IDs[j], alg, params, spec, height[j], years)
+            monthly_data_diff_all_stat.append( monthly_data_diff)
+                
+        
+        y=[]
+        for i in indexes:   
+            x=[]
+            y_line = []
+            for j in range(len(stations)):
+                y_line = y_line + monthly_data_diff_all_stat[j][i]
+                x_line = [stations[j][0:3] for i in range(len(monthly_data_diff_all_stat[j][i]))]
+                x = x + x_line
+            y.append(y_line)
+            
+        colors = [ 'goldenrod', 'gray', 'green','greenyellow', 'hotpink']
+        y=-np.array(y)
+        print(len(x),len(y[0]),len(y[1]),len(y[2]))       
+        for i in range(len(params)):
+            fig.add_trace(go.Box(
+                y=y[i],
+                x=x,
+                name=stations[j],
+                marker_color=colors[i]))
+        
+        fig.update_layout(yaxis_title='concentration difference',boxmode='group')
+        fig.update_yaxes( type="log")
+        fig.write_html('./res_plot/monthly_mean_boxplots/monthly_mean_box_plotly_'+spec+'.html')
+#        fig.show()
+
 def plot_sd_histo(data, stat,  id, alg, param, spec, heights):
     """
     plot histogram 
