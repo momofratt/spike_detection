@@ -141,7 +141,7 @@ def get_monthly_data(stat, id, alg, params, spec, height,years):
         #print('using existing data')  
     except:
         for year in years:
-            in_filename = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, height, spec, id) +'_'+alg+'_'+params[0]+ '_spiked'
+            in_filename = './data-minute-spiked/' + stat[0:3] +'/' + fmt.get_L1_file_name(stat[0:3], height, spec, id) +'_'+alg+'_'+params[0]+ '_spiked'
             data = pd.read_csv(in_filename, sep=';', parse_dates=['Datetime'] )  # read dataframe with spiked data
     
             for month in range(1,13): # get dataframe with non-spiked hourly mean
@@ -153,7 +153,7 @@ def get_monthly_data(stat, id, alg, params, spec, height,years):
         monthly_data_spiked = []
         monthly_data_diff = []
         for param in params: # loop over parameter values
-            in_filename = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, height, spec, id) +'_'+alg+'_'+param+ '_spiked'
+            in_filename = './data-minute-spiked/' + stat[0:3]+'/' + fmt.get_L1_file_name(stat[0:3], height, spec, id) +'_'+alg+'_'+param+ '_spiked'
             data = pd.read_csv(in_filename, sep=';', parse_dates=['Datetime'] )  # read dataframe with spiked data
             month_avg = []
             month_avg_spiked = []

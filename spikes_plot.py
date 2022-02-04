@@ -39,7 +39,7 @@ def get_indexes_for_monthly_boxplot(alg, params):
         if algo[0]!=alg:
             pass
         else:
-            all_params = algo[1:-1]
+            all_params = algo[1:]
             for par in params:
                 i = 0
                 for all_par in all_params:
@@ -247,7 +247,8 @@ def plot_season( stat,  id, algorithms, spec, height,years, log):
     fig.suptitle("Monthly mean concrentration: absolute values and difference between non-spiked and spiked data\n"+spec+' at '+stat+' '+id+'   height=' + height + ' m')
     plt.savefig('./res_plot/'+stat+'/monthly_mean/'+log_folder+'monthly_mean_'+stat+'_'+spec+'_'+id+'_h'+height+log_suff+'.pdf', format='pdf', bbox_inches="tight")
     plt.close(fig)
-    
+
+
 def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
     """
     plot seasonal boxplots of monthly mean differences respect to non spiked data 
@@ -265,32 +266,56 @@ def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
 
     """
     nboxplots = len(algorithms[0])-1 #number of boxplots to be plotted
+    
+    def adjacent_values(vals, q1, q3):
+        upper_adjacent_value = q3 + (q3 - q1) * 1.5
+        upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])
 
+        lower_adjacent_value = q1 - (q3 - q1) * 1.5
+        lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)
+        return lower_adjacent_value, upper_adjacent_value
+
+        
     def plot_monthly(monthly_data_diff, ax, stat, column,alg, params, indexes):
         monthly_data_diff = np.array(monthly_data_diff)
         count_xtick = 0 # counter to center the xtick
         for i in indexes:
             width = 0.05
-            #ax.boxplot(monthly_data_diff[i], positions = [1-(0.5*nboxplots-i)*0.1],widths=[width], patch_artist=True, notch=True)
-            ax.violinplot(monthly_data_diff[i][monthly_data_diff[i]!=0], positions = [1 - (0.5*nboxplots)*0.07+count_xtick*0.07+0.035], widths=[width])
+            inds = 1 - (0.5*nboxplots)*0.07+count_xtick*0.07+0.035 #  is used to put the xtick onli in the center of the plot
+            #ax.boxplot(monthly_data_diff[i], positions = [inds],widths=[width], patch_artist=True, notch=True)
+            data = monthly_data_diff[i][monthly_data_diff[i]>0.]
+            if len(data) == 0:
+                data=[0,0,0] # plot empy violin if no data
+            
+            ax.violinplot(data, positions = [inds], widths=[width]) 
+            
+            data= np.sort(data)
+            quartile1, medians, quartile3 = np.percentile(data, [25, 50, 75])
+            whiskers = np.array([ adjacent_values(data, quartile1, quartile3)])
+            whiskers_min, whiskers_max = whiskers[:, 0], whiskers[:, 1]
+            
+            ax.scatter(inds, medians, marker='o', color='white', s=30, zorder=3)
+            ax.vlines(inds, quartile1, quartile3, color='k', alpha=0.5, linestyle='-', lw=5)
+            ax.vlines(inds, whiskers_min, whiskers_max, color='k', alpha=0.5, linestyle='-', lw=1)
+
             count_xtick+=1
        
         if log:
             if (spec == 'CO') |( spec =='CH4'):
                 # mticks = [ 9,  8,  7,  6,  5,  4,  3,  2, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, -0.2, -0.4, -0.5, -0.6, -0.7, -0.8 ,-0.9,-2,-3,-4,-5,-6,-7,-8,-9,-20,-30,-40,-50,-60,-70,-80,-90 ]
-                mticks = [ 0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.2,0.3,0.4,0.5,0.6,0.7,0.8, 0.9, 9, 8, 7, 6, 5, 4, 3, 2, 20, 30, 40, 50, 60, 70, 80, 90 ]
+                mticks = [ 0.002,0.003,0.004,0.005,0.006,0.007,0.008,0.009,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.2,0.3,0.4,0.5,0.6,0.7,0.8, 0.9, 9, 8, 7, 6, 5, 4, 3, 2, 20, 30, 40, 50, 60, 70, 80, 90 ]
                 Mticks = [ 0, 0.1, 1, 10, 100 ]
                 #ax.axhline(-2, ls='--', c='r')
                 ax.axhline(2, ls='--', c='r')
-                min = 0.01
+                min = 0.001
                 max = 100
                
             else:
-                mticks = [ 0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09, 0.2, 0.4, 0.5, 0.6, 0.7, 0.8 ,0.9, 2, 3, 4, 5, 6, 7, 8, 9 ]
+                mticks = [ 0.0002,0.0003,0.0004,0.0005,0.0006,0.0007,0.0008,0.0009,0.002,0.003,0.004,0.005,0.006,0.007,0.008,0.009, 0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09, 0.2, 0.4, 0.5, 0.6, 0.7, 0.8 ,0.9, 2, 3, 4, 5, 6, 7, 8, 9 ]
                 Mticks = [ 0, 0.01, 0.1, 1, 10]
                 #ax.axhline(-0.1, ls = '--', c='r')
                 ax.axhline(0.1, ls = '--', c='r')
-                min = 0.001
+                min = 0.0001
                 max = 10
             ax.set_yscale('log')
 
@@ -317,7 +342,7 @@ def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
         if column>0:
             ax.set_yticklabels(['','','','',''])  
         ax.set_xticks([1])
-        ax.set_xticklabels([stat])
+        ax.set_xticklabels([stat[0:3]])
         
         if column<1: 
             ax.set_ylabel('Concentration difference '+fmt.get_meas_unit(spec))
@@ -345,7 +370,7 @@ def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
     pops1 = []
     for i in range(len(params)):
         pops0.append(  mpatches.Patch(color='C'+str(i), alpha=0.5, label=algorithms[0][0]+' '+algorithms[0][i+1]))
-        pops1.append(  mpatches.Patch(color='C'+str(i), alpha=0.5, label=algorithms[1][0]+' '+algorithms[0][i+1]))
+        pops1.append(  mpatches.Patch(color='C'+str(i), alpha=0.5, label=algorithms[1][0]+' '+algorithms[1][i+1]))
 
     ax[0][-1].legend(handles=pops0, bbox_to_anchor=(1,1), loc="upper left")   
     ax[1][-1].legend(handles=pops1, bbox_to_anchor=(1,1), loc="upper left")   

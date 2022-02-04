@@ -55,7 +55,7 @@ def get_L1_file_path(station):
     file path: str
 
     """
-    file_path = './data-minute/'+station + '-minute-data/'
+    file_path = './data-minute/'+station[0:3] + '-minute-data/'
     return file_path
 
 def get_L1_file_name(station, height, specie, inst_ID):
@@ -79,7 +79,7 @@ def get_L1_file_name(station, height, specie, inst_ID):
 
     """
     # example for filename: IPR_2019-01-01T00:00:00_2020-12-31T23:59:58_60.0_619_C_minute.CO2
-    file_nm = station+'_2019-01-01T00:00:00_2020-12-31T23:59:58_'+height+'_'+inst_ID+'_C_minute.'+specie
+    file_nm = station[0:3]+'_2019-01-01T00:00:00_2020-12-31T23:59:58_'+height+'_'+inst_ID+'_C_minute.'+specie
     return file_nm
 
 def get_spike_file_path(method, param):

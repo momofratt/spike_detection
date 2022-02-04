@@ -17,15 +17,15 @@ import spikes_statistics as stats
 
 # stations = ['SAC', 'CMN', 'IPR', 'KIT_CO', 'KIT', 'JUS', 'JFJ','PUI','UTO']
 #stations=['JUS','CMN','UTO','PUI']
-stations = ['CMN','JFJ','IPR','JUS','SAC','KIT']
+stations = ['CMN','PUI','UTO','JFJ','IPR','JUS','SAC','KIT']
 #stations = ['CMN']
 years = [2019,2020]
 config=ConfigParser()
-algorithms = [['SD', '0.1', '0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0'],
-                ['REBS', '1', '2', '3', '4', '5', '6', '7', '8', '9']]
+# algorithms = [['SD', '0.1', '0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0'],
+#                 ['REBS', '1', '2', '3', '4', '5', '6', '7', '8', '9']]
 
-# algorithms = [['SD', '0.1', '1.0',  '2.0','3.0'],
-#                ['REBS', '1',  '3','5', '7']]
+algorithms = [['SD', '0.1', '1.0', '4.0'],
+                ['REBS', '1', '3','9']]
 #algorithms = [['SD', '0.1']]
 #algorithms = [['SD', '0.1', '0.5', '1.0', '1.5', '2.0']]
 
@@ -120,19 +120,26 @@ custom_events=[]
 #         #        print('\n\n******** manual flag analysis high spikes ***********', id, spec, h)
 #         #        stats.plot_BFOR_parameters(stat, id, algorithms, spec, h, high_spikes=True)
 #         #        print('\n\n******** manual flag analysis all spikes ***********', id, spec, h)
-#         #        stats.plot_BFOR_parameters(stat, id, algorithms, spec, h, high_spikes=False)
+#         #         stats.plot_BFOR_parameters(stat, id, algorithms, spec, h, high_spikes=False)
 
 #### boxplot of monthly differences #####
-max_heights=[]
-IDs = []
-for stat in stations:
-    config.read('stations.ini') 
-    heights = config.get(stat, 'height' ).split(',')
-    max_heights.append(heights[-1]) # get max heights for the boxplots
-    IDs.append(config.get(stat, 'inst_ID' ))
-for spec in ['CO2','CH4','CO']:
+for spec in ['CH4','CO2','CO']:
+    max_heights=[]
+    IDs = []
+    algorithms = [['SD', '0.1', '1.0', '4.0'],
+                    ['REBS', '1', '3','9']]
+    if spec == 'CO':
+        stations = list(map(lambda x: x.replace('KIT', 'KIT_CO'), stations))
+        stations.remove('PUI')
+        algorithms = [['SD', '0.1', '3.0', '4.0'],
+                        ['REBS', '1', '8','9']]
+    for stat in stations:
+        config.read('stations.ini') 
+        heights = config.get(stat, 'height' ).split(',')
+        max_heights.append(heights[-1]) # get max heights for the boxplots
+        IDs.append(config.get(stat, 'inst_ID' ))
     splt.plot_season_boxplot(stations, IDs, algorithms, spec, max_heights, years, True)
-    #splt.plot_season_boxplot(stations, algorithms, spec, max_heights, years, False)
+        #splt.plot_season_boxplot(stations, algorithms, spec, max_heights, years, False)
 
 ################################################
 # plot events after manual PIQc
