@@ -13,7 +13,11 @@ import datetime as dt
 import numpy as np
 from os import path
 
-analyzed_months_dict = {'PUI': ['2019-1', '2020-6'], 'JUS':['2019-7','2020-3'], 'UTO':['2019-4', '2020-6'], 'CMN':['2019-9','2020-8']}
+analyzed_months_dict = {'PUI': ['2019-1', '2020-6'], 
+                        'JUS':['2019-7','2020-3'], 
+                        'UTO':['2019-4', '2020-6'], 
+                        'CMN':['2019-9','2020-8'], 
+                        'IPR':['2019-4','2020-7']}
 
 # IPR: APR 2019, JUL 2020, FEB 2020.
 # JFJ: APR 2019, JUL 2020, NOV 2020.

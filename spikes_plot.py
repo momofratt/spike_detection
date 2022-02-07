@@ -408,30 +408,32 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, height, years, l
         minim = np.log10(0.0001)
         maxim = np.log10(10)
     
-    fig = make_subplots(rows=2, cols=1,shared_xaxes=True)
     
+    fig = make_subplots(rows=2, cols=1)
     for i in range(len(algorithms)):
+            
         alg = algorithms[i][0] # read current algorithm name (REBS or SD)
         params = algorithms[i][1:len(algorithms[i])] # get list of parameters
         indexes = get_indexes_for_monthly_boxplot(alg, params)
-                
        
         monthly_data_diff_all_stat = []
         for j in range(len(stations)):
             monthly_data, monthly_data_diff = sel.get_monthly_data(stations[j], IDs[j], alg, params, spec, height[j], years)
             monthly_data_diff_all_stat.append( monthly_data_diff)
-                
-        
+                        
         y=[]
         for l in indexes:   
             x=[]
             y_line = []
-            for j in range(len(stations)):
+            for j in range(len(stations)): # define x and y for grouped boxplots
                 y_line = y_line + monthly_data_diff_all_stat[j][l]
                 x_line = [stations[j][0:3] for a in range(len(monthly_data_diff_all_stat[j][l]))]
                 x = x + x_line
             y.append(y_line)
-        colors = [ 'goldenrod', 'gray', 'green','greenyellow', 'hotpink']
+        # colors = [ ['goldenrod', 'gray', 'darkolivegreen',],
+        #           ['lightblue', 'darkslategray','darkslateblue','orange']]
+        colors = [ ['goldenrod', 'gray', 'darkolivegreen',],
+                   ['goldenrod', 'gray', 'darkolivegreen',]]
         y=-np.array(y)
         print(len(x),len(y[0]),len(y[1]),len(y[2]))       
         for k in range(len(params)):
@@ -442,9 +444,10 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, height, years, l
                 jitter=0.3,
                 pointpos=0,
                 boxpoints='all', # represent all points
-                marker_color=colors[k]),
-                row=i+1,
-                col=1)
+                marker_color = colors[i][k],
+                offsetgroup = alg + ' ' +params[k],
+                legendgroup=alg),                
+                row=i+1,col=1)
  
         fig.add_shape(type='line',
               x0=-0.5,
@@ -452,21 +455,19 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, height, years, l
               x1=len(stations)-.5,
               y1=xline,
               line=dict(color='Red', dash='dot'),
-              row=i+1,
-              col=1)
+              row=i+1,col=1)
 
-        fig.update_yaxes(title_text="concentration difference", 
+        fig.update_yaxes(title_text="diff "+fmt.get_meas_unit(spec), 
                           type='log',
                           range=[minim, maxim],
-                          row=i+1, col=1)
-        # fig.update_layout_images(
-        #     patch    = dict(boxmode='group'),
-        #     selector = dict(row=i+1),
-        #     row=i+1, col=1, 
-        #     )
-    fig.update_layout(boxmode='group')
-    fig.write_html('./res_plot/monthly_mean_boxplots/monthly_mean_box_plotly_'+spec+'.html')
-#        fig.show()
+                          row=i+1,col=1)
+                         
+    fig.update_layout(boxmode='group', 
+                      font=dict(size=25), 
+                      width=1700, height=800,
+                      title_text= spec+' Concentration Difference',
+                      legend_tracegroupgap = 250)
+    fig.write_image('./res_plot/monthly_mean_boxplots/monthly_mean_box_plotly_'+spec+'.svg')
 
 def plot_sd_histo(data, stat,  id, alg, param, spec, heights):
     """
