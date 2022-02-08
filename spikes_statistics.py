@@ -145,7 +145,7 @@ def plot_BFOR_parameters(stat, inst_id, algorithms, spec, height, high_spikes, h
         t1=ax.text(1.05,  0.05, stat_text, horizontalalignment='left', size='large', color='black',transform=ax.transAxes)
         t1.set_bbox(dict(facecolor='tan', alpha=0.3))
 
-        plt.savefig('res_plot/'+stat+'/bfor_parameters/bfor_parameters_'+stat+'_'+spec+'_h'+str(height)+'_'+alg+high_spikes_suff+'.pdf', format='pdf', bbox_inches="tight")
+        plt.savefig('res_plot/'+stat+'/bfor_parameters/bfor_parameters_'+stat+'_'+spec+'_h'+str(height)+'_'+alg+high_spikes_suff+'.png', format='png', bbox_inches="tight")
 
         # # plot ROC
         # fig, ax = plt.subplots(1,1)

@@ -18,14 +18,17 @@ import spikes_statistics as stats
 # stations = ['SAC', 'CMN', 'IPR', 'KIT_CO', 'KIT', 'JUS', 'JFJ','PUI','UTO']
 #stations=['JUS','CMN','UTO','PUI']
 stations = ['CMN','PUI','UTO','JFJ','IPR','JUS','SAC','KIT']
-#stations = ['CMN']
+#stations = ['IPR','JUS']
+# stations = ['IPR']
+# stations = ['IPR','SAC','KIT']
+
 years = [2019,2020]
 config=ConfigParser()
-# algorithms = [['SD', '0.1', '0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0'],
-#                 ['REBS', '1', '2', '3', '4', '5', '6', '7', '8', '9']]
+algorithms = [['SD', '0.1', '0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0'],
+                ['REBS', '1', '2', '3', '4', '5', '6', '7', '8', '9']]
 
-algorithms = [['SD', '0.1', '1.0', '4.0'],
-                ['REBS', '1', '3','9']]
+# algorithms = [['SD', '0.1', '1.0', '4.0'],
+#                 ['REBS', '1', '3','9']]
 #algorithms = [['SD', '0.1']]
 #algorithms = [['SD', '0.1', '0.5', '1.0', '1.5', '2.0']]
 
@@ -51,7 +54,7 @@ custom_events=[]
 ####  add column with PIs manual flags to the spiked data   ####
 # N.B. this function has to be executed only once
 
-#for algo in algorithms:
+# for algo in algorithms:
 #   alg = algo[0]
 #   for param in algo [1:len(algo)]:
 #       print(alg, param)
@@ -107,20 +110,20 @@ custom_events=[]
 #                     #                               id=id, 
 #                     #                               heights=heights)
 
-#         #### #### plot seasonal cycle #### #### 
-#         for spec in species:
-#             for h in heights:
-#                 print('plot season and daily cycle', id, spec, h)
-#                 splt.plot_season(stat, id, algorithms, spec, h, years, log=True)
-#                 #splt.plot_season_daily_cycle(stat, id, algorithms, spec, h, log=True)
+        #### #### plot seasonal cycle #### #### 
+        # for spec in species:
+        #     for h in heights:
+        #         print('plot season and daily cycle', id, spec, h)
+        #         # splt.plot_season(stat, id, algorithms, spec, h, years, log=True)
+        #         splt.plot_season_daily_cycle(stat, id, algorithms, spec, h, log=True)
 
-#         #### #### manual flag analysis #### #### 
-#         #for spec in species:
-#         #    for h in heights:
-#         #        print('\n\n******** manual flag analysis high spikes ***********', id, spec, h)
-#         #        stats.plot_BFOR_parameters(stat, id, algorithms, spec, h, high_spikes=True)
-#         #        print('\n\n******** manual flag analysis all spikes ***********', id, spec, h)
-#         #         stats.plot_BFOR_parameters(stat, id, algorithms, spec, h, high_spikes=False)
+        ### #### manual flag analysis #### #### 
+        # for spec in species:
+        #     for h in heights:
+        #         print('\n\n******** manual flag analysis high spikes ***********', id, spec, h)
+        #         stats.plot_BFOR_parameters(stat, id, algorithms, spec, h, high_spikes=True, high_spikes_mode='single',quant=None)
+        #         print('\n\n******** manual flag analysis all spikes ***********', id, spec, h)
+        #         stats.plot_BFOR_parameters(stat, id, algorithms, spec, h, high_spikes=False, high_spikes_mode='single',quant=None)
 
 #### boxplot of monthly differences #####
 for spec in ['CH4','CO2','CO']:
@@ -138,8 +141,9 @@ for spec in ['CH4','CO2','CO']:
         heights = config.get(stat, 'height' ).split(',')
         max_heights.append(heights[-1]) # get max heights for the boxplots
         IDs.append(config.get(stat, 'inst_ID' ))
-    splt.plot_season_boxplot(stations, IDs, algorithms, spec, max_heights, years, True)
-        #splt.plot_season_boxplot(stations, algorithms, spec, max_heights, years, False)
+    splt.plot_season_boxplot_plotly(stations, IDs, algorithms, spec, max_heights, years, False)
+#    splt.plot_season_boxplot_plotly(stations, IDs, algorithms, spec, max_heights, years, True)
+#    splt.plot_season_boxplot(stations, IDs, algorithms, spec, max_heights, years, '')
 
 ################################################
 # plot events after manual PIQc
@@ -169,14 +173,6 @@ for spec in ['CH4','CO2','CO']:
 #                 splt.plot_conc_event_PIQc_plotly(inst_frame_PIQc, stat, id, alg, param, spec, heights, ev, mode='single',quant=0.)
 ################################################
 ################################################
-
-
-
-
-
-
-
-
 
 
 #### #### heatmap #### ###

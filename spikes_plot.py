@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Tue Oct 26 12:02:42 2021
@@ -151,7 +150,7 @@ def plot_season_daily_cycle(stat, id, algorithms, spec, height, log):
             log_suff='_logscale'
 
         fig.suptitle("Daily mean cycle of concentration: absolute values and difference between non-spiked and spiked data\n"+spec+' at '+stat+' '+id+'   height=' + height + ' m   season='+season[0]+season[2])
-        plt.savefig('./res_plot/'+stat+'/daily_cycle/'+log_folder+'seasonal_daily_cycle_'+season[0]+'_'+stat+'_'+spec+'_'+id+'_h'+height+log_suff+'.pdf', format='pdf', bbox_inches="tight")
+        plt.savefig('./res_plot/'+stat+'/daily_cycle/'+log_folder+'seasonal_daily_cycle_'+season[0]+'_'+stat+'_'+spec+'_'+id+'_h'+height+log_suff+'.png', format='png', bbox_inches="tight")
         plt.close(fig)
 
 def plot_season( stat,  id, algorithms, spec, height,years, log):
@@ -301,7 +300,7 @@ def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
 
             count_xtick+=1
        
-        if log:
+        if log=='log':
             if (spec == 'CO') |( spec =='CH4'):
                 # mticks = [ 9,  8,  7,  6,  5,  4,  3,  2, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, -0.2, -0.4, -0.5, -0.6, -0.7, -0.8 ,-0.9,-2,-3,-4,-5,-6,-7,-8,-9,-20,-30,-40,-50,-60,-70,-80,-90 ]
                 mticks = [ 0.002,0.003,0.004,0.005,0.006,0.007,0.008,0.009,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.2,0.3,0.4,0.5,0.6,0.7,0.8, 0.9, 9, 8, 7, 6, 5, 4, 3, 2, 20, 30, 40, 50, 60, 70, 80, 90 ]
@@ -319,7 +318,28 @@ def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
                 min = 0.0001
                 max = 10
             ax.set_yscale('log')
-
+        elif log=='symlog':
+            if (spec == 'CO') |( spec =='CH4'):
+                # mticks = [ 9,  8,  7,  6,  5,  4,  3,  2, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, -0.2, -0.4, -0.5, -0.6, -0.7, -0.8 ,-0.9,-2,-3,-4,-5,-6,-7,-8,-9,-20,-30,-40,-50,-60,-70,-80,-90 ]
+                mticks = [ 9, 8, 7, 6, 5, 4, 3, 2, 20, 30, 40, 50, 60, 70, 80, 90 ]
+                mticks = mticks + [mt*-1 for mt in mticks]
+                Mticks = [ -10, -1, 0, 1, 10, 100 ]
+                ax.axhline(-2, ls='--', c='r')
+                ax.axhline(2, ls='--', c='r')
+                linthresh=1
+                min = -10
+                max = 100
+               
+            else:
+                mticks = [ 0.2, 0.4, 0.5, 0.6, 0.7, 0.8 ,0.9, 2, 3, 4, 5, 6, 7, 8, 9 ]
+                mticks = mticks + [mt*-1 for mt in mticks]
+                Mticks = [ -1,-0.1, 0, 0.1, 1, 10]
+                ax.axhline(-0.1, ls = '--', c='r')
+                ax.axhline(0.1, ls = '--', c='r')
+                linthresh=0.1
+                min = -1
+                max = 10
+            ax.set_yscale('symlog', linthresh= linthresh)
         else:
             if (spec == 'CO') |( spec =='CH4'):
                 # mticks = [ 9,  8,  7,  6,  5,  4,  3,  2, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, -0.2, -0.4, -0.5, -0.6, -0.7, -0.8 ,-0.9,-2,-3,-4,-5,-6,-7,-8,-9,-20,-30,-40,-50,-60,-70,-80,-90 ]
@@ -341,7 +361,7 @@ def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
         ax.set_ylim(bottom = min)
         ax.set_ylim(top = max)
         if column>0:
-            ax.set_yticklabels(['','','','',''])  
+            ax.set_yticklabels(['' for i in range(len(Mticks))])  
         ax.set_xticks([1])
         ax.set_xticklabels([stat[0:3]])
         
@@ -361,8 +381,10 @@ def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
             monthly_data_diff = np.array(monthly_data_diff)
             plot_monthly( -monthly_data_diff, ax[i][j], stations[j], j, alg, params, indexes)
 
-    if log:
+    if log=='log':
         log_suff='_logscale'
+    elif log=='symlog':
+        log_suff='_symlogscale'
     else:
         log_suff  =''
     
@@ -401,12 +423,20 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, height, years, l
     
     if (spec == 'CO') |( spec =='CH4'):
         xline = 2
-        minim = np.log10(0.001) # ranges with log10 for plotly
-        maxim = np.log10(30)
+        if log:
+            minim = np.log10(0.001) # ranges with log10 for plotly
+            maxim = np.log10(30)
+        else:
+            minim = -5 # ranges with log10 for plotly
+            maxim = 20
     else:
         xline = 0.1
-        minim = np.log10(0.0001)
-        maxim = np.log10(10)
+        if log:
+            minim = np.log10(0.0001)
+            maxim = np.log10(10)
+        else:
+            minim = -0.5
+            maxim = 3
     
     
     fig = make_subplots(rows=2, cols=1)
@@ -456,9 +486,24 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, height, years, l
               y1=xline,
               line=dict(color='Red', dash='dot'),
               row=i+1,col=1)
-
+        if not log:
+            fig.add_shape(type='line',
+                  x0=-0.5,
+                  y0=-xline,
+                  x1=len(stations)-.5,
+                  y1=-xline,
+                  line=dict(color='Red', dash='dot'),
+                  row=i+1,col=1)
+        
+        if log:
+            scale='log'
+            log_suff='_log'
+        else:
+            scale='linear'
+            log_suff=''
+            
         fig.update_yaxes(title_text="diff "+fmt.get_meas_unit(spec), 
-                          type='log',
+                          type=scale,
                           range=[minim, maxim],
                           row=i+1,col=1)
                          
@@ -466,8 +511,9 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, height, years, l
                       font=dict(size=25), 
                       width=1700, height=800,
                       title_text= spec+' Concentration Difference',
-                      legend_tracegroupgap = 250)
-    fig.write_image('./res_plot/monthly_mean_boxplots/monthly_mean_box_plotly_'+spec+'.svg')
+                      legend_tracegroupgap = 250,
+                      template = 'ggplot2')
+    fig.write_image('./res_plot/monthly_mean_boxplots/monthly_mean_box_plotly_'+spec+log_suff+'.png')
 
 def plot_sd_histo(data, stat,  id, alg, param, spec, heights):
     """
