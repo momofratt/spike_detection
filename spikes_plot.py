@@ -19,6 +19,7 @@ import pandas as pd
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from spikes_statistics import min_ampl_dict
+from configparser import ConfigParser
 
 monthly_range_CO_dict  = {'SAC':[90,240], 'CMN':[90,150], 'IPR':[120,470], 'KIT':[100,300], 'JUS':[90,350], 'JFJ':[90,150],'PUI':[],'UTO':[80,170]}
 monthly_range_CO2_dict = {'SAC':[405,440], 'CMN':[400,425], 'IPR':[405,480], 'KIT':[405,480], 'JUS':[410,460], 'JFJ':[400,425],'PUI':[390,430],'UTO':[400,425]}
@@ -33,7 +34,7 @@ def get_indexes_for_monthly_boxplot(alg, params):
     """ get index for a given algorithm and parameter"""
     
     all_algorithms = [['SD', '0.1', '0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0'],
-                      ['REBS', '1', '2', '3', '4', '5', '6', '7', '8', '9']]
+                      ['REBS', '1', '2', '3', '4', '5', '6', '7', '8', '9','10']]
     indexes=[]
     for algo in all_algorithms:
         if algo[0]!=alg:
@@ -404,7 +405,7 @@ def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
     
     
     
-def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, height, years, log):
+def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
     """
     plot seasonal boxplots of monthly mean differences respect to non spiked data 
     Parameters
@@ -413,30 +414,29 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, height, years, l
         details for stations names, instrument id, chemical specie from the ini file
     algorithms: list of str
         algorithms array defined in spikes.py
-    height: list
-         list of heights for the different stations
     Returns
     -------
     None.
 
     """
-    
+    config=ConfigParser()
+    config.read('stations.ini')
     if (spec == 'CO') |( spec =='CH4'):
         xline = 2
         if log:
-            minim = np.log10(0.001) # ranges with log10 for plotly
-            maxim = np.log10(30)
+            maxim = np.log10(0.001) # ranges with log10 for plotly
+            minim = np.log10(30)
         else:
-            minim = -5 # ranges with log10 for plotly
-            maxim = 20
+            maxim = 5 # ranges with log10 for plotly
+            minim = -20
     else:
         xline = 0.1
         if log:
             minim = np.log10(0.0001)
             maxim = np.log10(10)
         else:
-            minim = -0.5
-            maxim = 3
+            maxim = 0.5
+            minim = -3
     
     
     fig = make_subplots(rows=2, cols=1)
@@ -445,26 +445,41 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, height, years, l
         alg = algorithms[i][0] # read current algorithm name (REBS or SD)
         params = algorithms[i][1:len(algorithms[i])] # get list of parameters
         indexes = get_indexes_for_monthly_boxplot(alg, params)
-       
-        monthly_data_diff_all_stat = []
-        for j in range(len(stations)):
-            monthly_data, monthly_data_diff = sel.get_monthly_data(stations[j], IDs[j], alg, params, spec, height[j], years)
-            monthly_data_diff_all_stat.append( monthly_data_diff)
-                        
+        
+        
+        
+        monthly_data_diff_all_stat = [] # used to "store" the monthly tables of different stations ad sampling altitudes
+        for stat in stations:
+            heights = config.get(stat, 'height' ).split(',')
+            ID      = config.get(stat, 'inst_ID').split(',')[0]
+            for height in heights:
+                monthly_data, monthly_data_diff = sel.get_monthly_data(stat, ID, alg, params, spec, height, years)
+                monthly_data_diff_all_stat.append( monthly_data_diff)
+        
+        # set x and y arrays in for the plotly grouped boxplot
+        print(len(monthly_data_diff_all_stat),len(monthly_data_diff_all_stat[0]))
         y=[]
         for l in indexes:   
             x=[]
             y_line = []
-            for j in range(len(stations)): # define x and y for grouped boxplots
-                y_line = y_line + monthly_data_diff_all_stat[j][l]
-                x_line = [stations[j][0:3] for a in range(len(monthly_data_diff_all_stat[j][l]))]
+            j=0
+            for stat in stations: # define x and y for grouped boxplots
+                print(stat)
+                heights = config.get(stat, 'height' ).split(',')
+                x_line = []
+                for k in range(len(heights)):
+                    print(j,l)
+                    y_line = y_line + monthly_data_diff_all_stat[j][l]
+                    x_line = x_line + [ stat[0:3]+'-'+config.get(stat, 'inst_ID')+' - '+ heights[k] for a in range(len(monthly_data_diff_all_stat[j][l])) ]
+                    j+=1
                 x = x + x_line
             y.append(y_line)
+            
         # colors = [ ['goldenrod', 'gray', 'darkolivegreen',],
         #           ['lightblue', 'darkslategray','darkslateblue','orange']]
         colors = [ ['goldenrod', 'gray', 'darkolivegreen',],
                    ['goldenrod', 'gray', 'darkolivegreen',]]
-        y=-np.array(y)
+        #y=-np.array(y)
         print(len(x),len(y[0]),len(y[1]),len(y[2]))       
         for k in range(len(params)):
             fig.add_trace(go.Box(
@@ -502,7 +517,7 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, height, years, l
             scale='linear'
             log_suff=''
             
-        fig.update_yaxes(title_text="diff "+fmt.get_meas_unit(spec), 
+        fig.update_yaxes(title_text='$\Delta$'+spec+' '+fmt.get_meas_unit(spec), 
                           type=scale,
                           range=[minim, maxim],
                           row=i+1,col=1)

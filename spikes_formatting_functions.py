@@ -83,6 +83,7 @@ def get_L1_file_name(station, height, specie, inst_ID):
 
     """
     # example for filename: IPR_2019-01-01T00:00:00_2020-12-31T23:59:58_60.0_619_C_minute.CO2
+    print(station, height, specie, inst_ID)
     file_nm = station[0:3]+'_2019-01-01T00:00:00_2020-12-31T23:59:58_'+height+'_'+inst_ID+'_C_minute.'+specie
     return file_nm
 
