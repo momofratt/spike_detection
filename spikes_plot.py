@@ -439,26 +439,27 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
             minim = -3
     
     
-    fig = make_subplots(rows=2, cols=1)
+    fig = make_subplots(rows=2, cols=1, horizontal_spacing = 0.0)
     for i in range(len(algorithms)):
             
         alg = algorithms[i][0] # read current algorithm name (REBS or SD)
         params = algorithms[i][1:len(algorithms[i])] # get list of parameters
         indexes = get_indexes_for_monthly_boxplot(alg, params)
         
-        
-        
         monthly_data_diff_all_stat = [] # used to "store" the monthly tables of different stations ad sampling altitudes
         for stat in stations:
             heights = config.get(stat, 'height' ).split(',')
-            ID      = config.get(stat, 'inst_ID').split(',')[0]
+            ID      = config.get(stat, 'inst_ID')
             for height in heights:
                 monthly_data, monthly_data_diff = sel.get_monthly_data(stat, ID, alg, params, spec, height, years)
-                monthly_data_diff_all_stat.append( monthly_data_diff)
-        
+                monthly_data_diff_all_stat.append(monthly_data_diff)
+                if len(monthly_data_diff)<9:
+                    print('pochi dati:', stat, height, alg)
         # set x and y arrays in for the plotly grouped boxplot
-        print(len(monthly_data_diff_all_stat),len(monthly_data_diff_all_stat[0]))
+        # print(len(monthly_data_diff_all_stat),len(monthly_data_diff_all_stat[0]))
         y=[]
+        print(indexes)
+
         for l in indexes:   
             x=[]
             y_line = []
@@ -468,17 +469,16 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
                 heights = config.get(stat, 'height' ).split(',')
                 x_line = []
                 for k in range(len(heights)):
-                    print(j,l)
                     y_line = y_line + monthly_data_diff_all_stat[j][l]
-                    x_line = x_line + [ stat[0:3]+'-'+config.get(stat, 'inst_ID')+' - '+ heights[k] for a in range(len(monthly_data_diff_all_stat[j][l])) ]
+                    x_line = x_line + [ stat[0:3]+'-'+config.get(stat, 'inst_ID')[-3:]+' - '+ heights[k]+' m' for a in range(len(monthly_data_diff_all_stat[j][l])) ]
                     j+=1
                 x = x + x_line
             y.append(y_line)
             
-        # colors = [ ['goldenrod', 'gray', 'darkolivegreen',],
-        #           ['lightblue', 'darkslategray','darkslateblue','orange']]
         colors = [ ['goldenrod', 'gray', 'darkolivegreen',],
-                   ['goldenrod', 'gray', 'darkolivegreen',]]
+                  ['goldenrod', 'gray', 'darkolivegreen',]]
+        # colors = [ ['#D4AA00', '#A0A0A0', '#90AE1B',],
+        #            ['#D4AA00', '#A0A0A0', '#90AE1B',]]
         #y=-np.array(y)
         print(len(x),len(y[0]),len(y[1]),len(y[2]))       
         for k in range(len(params)):
@@ -497,17 +497,18 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
         fig.add_shape(type='line',
               x0=-0.5,
               y0=xline,
-              x1=len(stations)-.5,
+              x1=len(stations)+8-.5,
               y1=xline,
-              line=dict(color='Red', dash='dot'),
+              line=dict(color='#C31D1D', dash='dot'),
               row=i+1,col=1)
+        
         if not log:
             fig.add_shape(type='line',
                   x0=-0.5,
                   y0=-xline,
-                  x1=len(stations)-.5,
+                  x1=len(stations)+8-.5,
                   y1=-xline,
-                  line=dict(color='Red', dash='dot'),
+                  line=dict(color='#C31D1D', dash='dot'),
                   row=i+1,col=1)
         
         if log:
@@ -516,8 +517,13 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
         else:
             scale='linear'
             log_suff=''
-            
-        fig.update_yaxes(title_text='$\Delta$'+spec+' '+fmt.get_meas_unit(spec), 
+        
+        fig.update_xaxes(showticklabels=False, 
+                         row=1, col=1)
+        fig.update_xaxes(tickangle=-45,
+                         tickfont=dict(size=20),
+                         row=2, col=1)
+        fig.update_yaxes(title_text='Δ'+spec+' '+fmt.get_meas_unit(spec), 
                           type=scale,
                           range=[minim, maxim],
                           row=i+1,col=1)
@@ -527,7 +533,10 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
                       width=1700, height=800,
                       title_text= spec+' Concentration Difference',
                       legend_tracegroupgap = 250,
-                      template = 'ggplot2')
+                      template = 'plotly+gridon',
+                      plot_bgcolor='#ededed'
+                      )
+    
     fig.write_image('./res_plot/monthly_mean_boxplots/monthly_mean_box_plotly_'+spec+log_suff+'.png')
 
 def plot_sd_histo(data, stat,  id, alg, param, spec, heights):

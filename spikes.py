@@ -17,8 +17,9 @@ import spikes_statistics as stats
 
 # stations = ['SAC', 'CMN', 'IPR', 'KIT_CO', 'KIT', 'JUS', 'JFJ','PUI','UTO']
 #stations=['JUS','CMN','UTO','PUI']
-stations = ['CMN','PUI','UTO','JFJ','IPR','JUS','SAC']
-#stations = ['IPR','JUS']
+stations = ['CMN','PUI','UTO','JFJ','IPR','JUS','SAC','SAC_329','KIT']
+# stations = ['KIT_CO', 'SAC_329']
+# stations = ['SAC_329']
 # stations = ['SAC_329']
 # stations = ['IPR','SAC','KIT']
 
@@ -26,7 +27,7 @@ years = [2019,2020]
 config=ConfigParser()
 algorithms = [['SD', '0.1', '0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0'],
                 ['REBS', '1', '2', '3', '4', '5', '6', '7', '8', '9','10']]
-#algorithms = [['REBS', '10']]
+# algorithms = [['REBS', '10']]
 # algorithms = [['SD', '0.1', '1.0', '4.0'],
 #                 ['REBS', '1', '3','10']]
 #algorithms = [['SD', '0.1']]
@@ -110,7 +111,7 @@ custom_events=[]
 #                     #                               id=id, 
 #                     #                               heights=heights)
 
-        ### #### plot seasonal cycle #### #### 
+        ## #### plot seasonal cycle #### #### 
         # for spec in species:
         #     for h in heights:
         #         print('plot season and daily cycle', id, spec, h)
@@ -130,12 +131,13 @@ for spec in ['CH4','CO2','CO']:
     max_heights=[]
     IDs = []
     algorithms = [['SD', '0.1', '1.0', '4.0'],
-                    ['REBS', '1', '3','9']]
+                    ['REBS', '1', '3','10']]
     if spec == 'CO':
-        stations = list(map(lambda x: x.replace('KIT', 'KIT_CO'), stations))
+        ## ATTENZIONE!!! se vuoi analizzare CO rimuovi 'KIT_CO' dalla lista di stazioni!!
+        stations = list(map(lambda x: x.replace('KIT', 'KIT_CO'), stations)) # replace KIT with KIT_CO
         stations.remove('PUI')
         algorithms = [['SD', '0.1', '3.0', '4.0'],
-                        ['REBS', '1', '8','9']]
+                        ['REBS', '1', '8','10']]
     for stat in stations:
         config.read('stations.ini') 
         heights = config.get(stat, 'height' ).split(',')

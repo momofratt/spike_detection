@@ -133,8 +133,8 @@ def get_monthly_data(stat, id, alg, params, spec, height,years):
     """
     
     try: # if monthly tables alredy exist upload the existing tables, otherwise compute montly mean
-        monthly_data_spiked_frame = pd.read_csv('./res_monthly_tables/monthly_avg_table_'+str(stat)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ', index_col=0) 
-        monthly_data_diff_frame   = pd.read_csv('./res_monthly_tables/monthly_avg_table_diff_'+str(stat)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ', index_col=0)
+        monthly_data_spiked_frame = pd.read_csv('./res_monthly_tables/monthly_avg_table_'     +str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ', index_col=0) 
+        monthly_data_diff_frame   = pd.read_csv('./res_monthly_tables/monthly_avg_table_diff_'+str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ', index_col=0)
         monthly_data_spiked_frame.reset_index(drop=True, inplace=True) #remove first column
         monthly_data_diff_frame.reset_index(drop=True, inplace=True)
         monthly_data_spiked, monthly_data_diff = monthly_data_spiked_frame.values.tolist(), monthly_data_diff_frame.values.tolist()
@@ -195,16 +195,17 @@ def get_monthly_data(stat, id, alg, params, spec, height,years):
         monthly_data_frame=pd.DataFrame(monthly_data_spiked)
         monthly_data_frame.columns = [str(a)+'-2019' for a in range(1,13)] + [str(b)+'-2020' for b in range(1,13)]
         monthly_data_frame.index =[alg+str(par) for par in params] + ['non-spiked']
-        monthly_data_frame.to_csv('./res_monthly_tables/monthly_avg_table_'+str(stat)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
+        monthly_data_frame.to_csv('./res_monthly_tables/monthly_avg_table_'          +str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
     
         monthly_data_diff_frame=pd.DataFrame(monthly_data_diff)
         monthly_data_diff_frame.columns = [str(a)+'-2019' for a in range(1,13)] + [str(b)+'-2020' for b in range(1,13)]
         monthly_data_diff_frame.index =[alg+str(par) for par in params]
-        monthly_data_diff_frame.to_csv('./res_monthly_tables/monthly_avg_table_diff_'+str(stat)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
+        monthly_data_diff_frame.to_csv('./res_monthly_tables/monthly_avg_table_diff_'+str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
     
     return monthly_data_spiked, monthly_data_diff
 
 def get_daily_season_data(stat, id, alg, params, spec, height,season,season_str):
+    ## NB this function should be implemented with a try-except statement as for the get_monthly_data() function.
     """
     read spiked data files and returns daily cycle averaged over season for different parameters
 
@@ -275,7 +276,7 @@ def get_daily_season_data(stat, id, alg, params, spec, height,season,season_str)
     daily_data_diff_frame=pd.DataFrame(daily_cycles_diff)
     daily_data_diff_frame.columns = [str(a) for a in range(0,24)]
     daily_data_diff_frame.index =[alg+str(par) for par in params]
-    daily_data_diff_frame.to_csv('./res_daily_tables/daily_cycle_table_diff_'+str(stat)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'_'+season_str+'.csv', sep=' ')
+    daily_data_diff_frame.to_csv('./res_daily_tables/daily_cycle_table_diff_'+str(stat)+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'_'+season_str+'.csv', sep=' ')
 
 
 
