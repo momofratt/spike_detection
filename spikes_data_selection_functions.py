@@ -228,55 +228,64 @@ def get_daily_season_data(stat, id, alg, params, spec, height,season,season_str)
         the last list is referred to no-spiked data
 
     """
-    daily_cycles=[]
-    daily_cycles_diff=[]
+    try:# if daily tables alredy exist upload the existing tables, otherwise compute daily mean cycles
+        daily_data_spiked_frame = pd.read_csv('./res_daily_tables/daily_cycle_table_'+str(stat)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'_'+season_str+'.csv', sep=' ', index_col=0) 
+        daily_data_diff_frame   = pd.read_csv('./res_daily_tables/daily_cycle_table_diff_'+str(stat)+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'_'+season_str+'.csv', sep=' ', index_col=0)
+        daily_data_spiked_frame.reset_index(drop=True, inplace=True) #remove first column
+        daily_data_diff_frame.reset_index(drop=True, inplace=True)
+        daily_cycles, daily_cycles_diff = daily_data_spiked_frame.values.tolist(), daily_data_diff_frame.values.tolist()
+    
+    
+    except:
+        daily_cycles=[]
+        daily_cycles_diff=[]
 
-    if season[0]<season[1]: # if the first month is december consider the previous year
-        start_date = dt.datetime(2020,season[0],1)
-    else:
-        start_date = dt.datetime(2019,season[0],1)
-    end_date = dt.datetime(2020,season[1],1)
+        if season[0]<season[1]: # if the first month is december consider the previous year
+            start_date = dt.datetime(2020,season[0],1)
+        else:
+            start_date = dt.datetime(2019,season[0],1)
+        end_date = dt.datetime(2020,season[1],1)
 
-    for param in params: # loop over parameter values
-        in_filename = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, height, spec, id) +'_'+alg+'_'+param+ '_spiked'
-        data = pd.read_csv(in_filename, sep=';', parse_dates=['Datetime'] )  # read dataframe with spiked data
-        season_data = data.loc[(data['Datetime'] > start_date) &
-                               (data['Datetime'] < end_date) &
-                               (data['spike_'+spec.lower()]==False)] # read spiked data
-        season_data_hourly = get_hourly_frame(season_data, 'Datetime',spec.lower())
+        for param in params: # loop over parameter values
+            in_filename = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, height, spec, id) +'_'+alg+'_'+param+ '_spiked'
+            data = pd.read_csv(in_filename, sep=';', parse_dates=['Datetime'] )  # read dataframe with spiked data
+            season_data = data.loc[(data['Datetime'] > start_date) &
+                                (data['Datetime'] < end_date) &
+                                (data['spike_'+spec.lower()]==False)] # read spiked data
+            season_data_hourly = get_hourly_frame(season_data, 'Datetime',spec.lower())
 
-        season_data_non_spiked = data.loc[(data['Datetime'] > start_date) &
-                                          (data['Datetime'] < end_date)] # read non-spiked data
-        season_data_non_spiked_hourly = get_hourly_frame(season_data_non_spiked, 'Datetime', spec.lower())
+            season_data_non_spiked = data.loc[(data['Datetime'] > start_date) &
+                                            (data['Datetime'] < end_date)] # read non-spiked data
+            season_data_non_spiked_hourly = get_hourly_frame(season_data_non_spiked, 'Datetime', spec.lower())
 
-        season_data_hourly_diff = season_data_hourly[spec.lower()] - season_data_non_spiked_hourly[spec.lower()]
+            season_data_hourly_diff = season_data_hourly[spec.lower()] - season_data_non_spiked_hourly[spec.lower()]
 
-        #season_data = season_data.set_index("Datetime")
+            #season_data = season_data.set_index("Datetime")
 
+            daily = []
+            daily_diff = []
+            for i in range(0,24):
+                daily.append(     round( season_data_hourly.between_time(     str(datetime.time(i,0,0)), str(datetime.time(i,59,0)) )[spec.lower()].mean(),2) )
+                daily_diff.append(round( season_data_hourly_diff.between_time(str(datetime.time(i,0,0)), str(datetime.time(i,59,0)) ).mean(),2) )
+
+            daily_cycles.append(daily)
+            daily_cycles_diff.append(daily_diff)
+
+        # append last list with no spiked data (no selection on data['spike_'+spec.lower()]==False performed)
         daily = []
-        daily_diff = []
         for i in range(0,24):
-            daily.append(     round( season_data_hourly.between_time(     str(datetime.time(i,0,0)), str(datetime.time(i,59,0)) )[spec.lower()].mean(),2) )
-            daily_diff.append(round( season_data_hourly_diff.between_time(str(datetime.time(i,0,0)), str(datetime.time(i,59,0)) ).mean(),2) )
-
+            daily.append( round(season_data_non_spiked_hourly.between_time(str(datetime.time(i,0,0)), str(datetime.time(i,59,0)) )[spec.lower()].mean(),2) )
         daily_cycles.append(daily)
-        daily_cycles_diff.append(daily_diff)
 
-    # append last list with no spiked data (no selection on data['spike_'+spec.lower()]==False performed)
-    daily = []
-    for i in range(0,24):
-        daily.append( round(season_data_non_spiked_hourly.between_time(str(datetime.time(i,0,0)), str(datetime.time(i,59,0)) )[spec.lower()].mean(),2) )
-    daily_cycles.append(daily)
+        daily_data_frame=pd.DataFrame(daily_cycles)
+        daily_data_frame.columns = [str(a) for a in range(0,24)] 
+        daily_data_frame.index =[alg+str(par) for par in params] + ['non-spiked']
+        daily_data_frame.to_csv('./res_daily_tables/daily_cycle_table_'+str(stat)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'_'+season_str+'.csv', sep=' ')
 
-    daily_data_frame=pd.DataFrame(daily_cycles)
-    daily_data_frame.columns = [str(a) for a in range(0,24)] 
-    daily_data_frame.index =[alg+str(par) for par in params] + ['non-spiked']
-    daily_data_frame.to_csv('./res_daily_tables/daily_cycle_table_'+str(stat)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'_'+season_str+'.csv', sep=' ')
-
-    daily_data_diff_frame=pd.DataFrame(daily_cycles_diff)
-    daily_data_diff_frame.columns = [str(a) for a in range(0,24)]
-    daily_data_diff_frame.index =[alg+str(par) for par in params]
-    daily_data_diff_frame.to_csv('./res_daily_tables/daily_cycle_table_diff_'+str(stat)+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'_'+season_str+'.csv', sep=' ')
+        daily_data_diff_frame=pd.DataFrame(daily_cycles_diff)
+        daily_data_diff_frame.columns = [str(a) for a in range(0,24)]
+        daily_data_diff_frame.index =[alg+str(par) for par in params]
+        daily_data_diff_frame.to_csv('./res_daily_tables/daily_cycle_table_diff_'+str(stat)+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'_'+season_str+'.csv', sep=' ')
 
 
 
