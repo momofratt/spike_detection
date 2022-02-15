@@ -29,7 +29,6 @@ daily_range_CH4_dict = {'SAC':[1950,2050], 'CMN':[1930,1980], 'IPR':[1975,2150],
 daily_range_CO_dict  = {'SAC':[90,180], 'CMN':[90,150], 'IPR':[100,400], 'KIT':[125,200], 'JUS':[90,260], 'JFJ':[100,130],'PUI':[],'UTO':[85,145]}
 
 
-
 def get_indexes_for_monthly_boxplot(alg, params):
     """ get index for a given algorithm and parameter"""
     
@@ -216,17 +215,19 @@ def plot_season_daily_cycle_compact(stat, id, algorithms, spec, height, log):
         if alg =='REBS': # do only once the following 
             ax_abs.plot(non_spiked, label = 'non-spiked', c='black',ls='--', lw=2)
             ax_abs.fill_between(np.arange(0,24,1), non_spiked-wmo_thresh, non_spiked+wmo_thresh,color='gray', alpha=0.3)
-            ax_abs.set_ylabel('Concentration '+fmt.get_meas_unit(spec))
+            ax_abs.set_ylabel(spec+' '+fmt.get_meas_unit(spec))
             ax_abs.set_xticks(np.arange(0,24,2))
             ax_abs.grid(True)
             ax_abs.set_xlabel('hours')
-        ax_abs.legend(bbox_to_anchor=(1,1), loc="upper left")
-
+            ax_abs.yaxis.set_label_position("right")
+            ax_abs.yaxis.tick_right()
+        #ax_abs.legend(bbox_to_anchor=(1.1,1), loc="upper left")
+        ax_abs.legend()
         ax_diff.set_xlabel('hours')
-        ax_diff.set_ylabel('Concentration difference '+fmt.get_meas_unit(spec))
+        ax_diff.set_ylabel('Δ'+spec+' '+fmt.get_meas_unit(spec))
         ax_diff.set_xticks(np.arange(0,24,2))
-        #ax_diff.grid(which = 'major')
-        #ax_diff.grid(b=True, which='minor', linestyle='-', alpha=0.2)
+        ax_diff.grid(which = 'major')
+        ax_diff.grid(b=True, which='minor', linestyle='-', alpha=0.2)
         ax_diff.grid(True, which='both')
         if alg=='SD':
             ax_diff.set_xticklabels(['' for i in range(12)])
@@ -238,10 +239,11 @@ def plot_season_daily_cycle_compact(stat, id, algorithms, spec, height, log):
     
     for season in seasons:
         print(season[0])
+        
         plt.style.use('ggplot')
-
         fig = plt.figure(figsize=(10,6.6))
-        fig.subplots_adjust(hspace=0.05)
+        fig.tight_layout()
+        fig.subplots_adjust(hspace=0.05, wspace=0.05)
         ax = []
         ax.append(plt.subplot2grid((2,2), (0,0)))
         ax.append(plt.subplot2grid((2,2), (1,0)))
@@ -347,8 +349,8 @@ def plot_season( stat,  id, algorithms, spec, height,years, log):
             #     ax[1].set_ylim(yrange[0], yrange[1])
 
         ax[1].plot(non_spiked, label = 'non-spiked', c='black',ls='--')
-        ax[0].set_ylabel('Concentration difference '+fmt.get_meas_unit(spec))
-        ax[1].set_ylabel('Concentration '+fmt.get_meas_unit(spec))
+        ax[0].set_ylabel('Δ'+spec+' '+fmt.get_meas_unit(spec))
+        ax[1].set_ylabel(spec+' '+fmt.get_meas_unit(spec))
         ax[1].legend(bbox_to_anchor=(1,1), loc="upper left")
 
         for a in ax:
@@ -495,7 +497,7 @@ def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
         ax.set_xticklabels([stat[0:3]])
         
         if column<1: 
-            ax.set_ylabel('Concentration difference '+fmt.get_meas_unit(spec))
+            ax.set_ylabel('Δ'+spec+' '+fmt.get_meas_unit(spec))
 
         ax.grid(b=True, which='minor', linestyle='-', alpha=0.2)
 
