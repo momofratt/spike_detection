@@ -159,23 +159,16 @@ def plot_season_daily_cycle_compact(stat, id, algorithms, spec, height, log):
     colors =[['#DDA0DD','#FF1493','#8A2BE2' ],
              ['skyblue', 'deepskyblue','steelblue']]
 
-    def plot_daily_cycle(season_data, season_data_diff, ax_diff, ax_abs,  alg, params, indexes):
-        non_spiked=np.array(season_data[-1])
+    def plot_daily_cycle(season_data, season_data_diff, non_spiked, ax_diff, ax_abs,  alg, params, indexes):
         min, max = 0, 0
         if alg =='SD':
             offset_index=0
         else:
             offset_index=1
         for j in range(len(season_data)):
-            delta = -non_spiked+np.array(season_data[j])
             #ax[0].plot(delta, label = alg +' '+params[j])
             ax_diff.plot(season_data_diff[j], label = alg +' '+params[indexes[j]], c=colors[offset_index][j]) # plot differences
             ax_abs.plot(np.array(season_data[j]), label = alg +' '+params[indexes[j]], c=colors[offset_index][j])
-            minim, maxim = np.min(delta), np.max(delta)
-            if (minim < min):
-                min = minim
-            if (maxim>max):
-                max=maxim
 
         if log:
             if (spec == 'CO') |( spec =='CH4'):
@@ -184,6 +177,7 @@ def plot_season_daily_cycle_compact(stat, id, algorithms, spec, height, log):
                 ax_diff.axhline(-2, ls='--', c='r')
                 ax_diff.axhline(2, ls='--', c='r')
                 linthresh=1
+                wmo_thresh=2
                 min = -100
                 max = 1
 
@@ -193,6 +187,7 @@ def plot_season_daily_cycle_compact(stat, id, algorithms, spec, height, log):
                 ax_diff.axhline(-0.1, ls = '--', c='r')
                 ax_diff.axhline(0.1, ls = '--', c='r')
                 linthresh=0.1
+                wmo_thresh = 0.1
                 min = -10
                 max = 0.1
 
@@ -220,6 +215,7 @@ def plot_season_daily_cycle_compact(stat, id, algorithms, spec, height, log):
 
         if alg =='REBS': # do only once the following 
             ax_abs.plot(non_spiked, label = 'non-spiked', c='black',ls='--', lw=3)
+            ax_abs.fill_between(np.arange(0,24,1), non_spiked-wmo_thresh, non_spiked+wmo_thresh,alpha=0.3)
             ax_abs.set_ylabel('Concentration '+fmt.get_meas_unit(spec))
             ax_abs.set_xticks(np.arange(0,24,2))        
             ax_abs.grid()
@@ -266,15 +262,15 @@ def plot_season_daily_cycle_compact(stat, id, algorithms, spec, height, log):
                     
             params = algorithms[i][1:len(algorithms[i])] # get list of parameters
             season_day_data, season_day_data_diff = sel.get_daily_season_data(stat, id, alg, params, spec, height,season[1],season[0])
-            
+            non_spiked = np.array(season_day_data[-1])
             season_day_data_sub, season_day_data_diff_sub = [], [] # define sublists with selected parameters
             indexes = get_indexes_for_monthly_boxplot(alg, subparams)
-            
+
             for k in indexes:
                 season_day_data_sub.append(season_day_data[k+1])
                 season_day_data_diff_sub.append(season_day_data_diff[k])
-                
-            plot_daily_cycle(season_day_data_sub, season_day_data_diff_sub, ax[i], ax[2], alg, params, indexes)
+
+            plot_daily_cycle(season_day_data_sub, season_day_data_diff_sub, non_spiked, ax[i], ax[2], alg, params, indexes)
         if log:
             log_folder = 'log/'
             log_suff='_logscale'
