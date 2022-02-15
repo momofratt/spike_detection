@@ -154,6 +154,136 @@ def plot_season_daily_cycle(stat, id, algorithms, spec, height, log):
         plt.savefig('./res_plot/'+stat+'/daily_cycle/'+log_folder+'seasonal_daily_cycle_'+season[0]+'_'+stat+'_'+spec+'_'+id+'_h'+height+log_suff+'.png', format='png', bbox_inches="tight")
         plt.close(fig)
 
+def plot_season_daily_cycle_compact(stat, id, algorithms, spec, height, log):
+    """    more compact plot respect to plot_season_daily_cycle(function)    """
+    colors =[['#DDA0DD','#FF1493','#8A2BE2' ],
+             ['skyblue', 'deepskyblue','steelblue']]
+
+    def plot_daily_cycle(season_data, season_data_diff, ax_diff, ax_abs,  alg, params, indexes):
+        non_spiked=np.array(season_data[-1])
+        min, max = 0, 0
+        if alg =='SD':
+            offset_index=0
+        else:
+            offset_index=1
+        for j in range(len(season_data)):
+            delta = -non_spiked+np.array(season_data[j])
+            #ax[0].plot(delta, label = alg +' '+params[j])
+            ax_diff.plot(season_data_diff[j], label = alg +' '+params[indexes[j]], c=colors[offset_index][j]) # plot differences
+            ax_abs.plot(np.array(season_data[j]), label = alg +' '+params[indexes[j]], c=colors[offset_index][j])
+            minim, maxim = np.min(delta), np.max(delta)
+            if (minim < min):
+                min = minim
+            if (maxim>max):
+                max=maxim
+
+        if log:
+            if (spec == 'CO') |( spec =='CH4'):
+                mticks = [ 9,  8,  7,  6,  5,  4,  3,  2,-2,-3,-4,-5,-6,-7,-8,-9,-20,-30,-40,-50,-60,-70,-80,-90 ]
+                Mticks = [10, 1,  0, -1, -10, -100]
+                ax_diff.axhline(-2, ls='--', c='r')
+                ax_diff.axhline(2, ls='--', c='r')
+                linthresh=1
+                min = -100
+                max = 1
+
+            else:
+                mticks = [ 9,  8,  7,  6,  5,  4,  3,  2, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, -0.2, -0.4, -0.5, -0.6, -0.7, -0.8 ,-0.9, -2,-3,-4,-5,-6,-7,-8,-9 ]
+                Mticks = [10, 1,  0.1, 0, -0.1, -1, -10]
+                ax_diff.axhline(-0.1, ls = '--', c='r')
+                ax_diff.axhline(0.1, ls = '--', c='r')
+                linthresh=0.1
+                min = -10
+                max = 0.1
+
+
+            ax_diff.set_yscale('symlog',linthresh=linthresh)
+            ax_diff.set_yticks(Mticks)
+            ax_diff.set_yticks(mticks, minor=True)
+
+            if max <0.1:
+                max = 0.1
+            ax_diff.set_ylim(bottom = min*1.15)
+            ax_diff.set_ylim(top = max*1.15)
+
+            ax_diff.set_ylim(bottom = min*1.05)
+            ax_diff.set_ylim(top = max*1.05)
+            # if spec == 'CO':
+            #     yrange = daily_range_CO_dict[stat]
+            #     ax[1].set_ylim(yrange[0], yrange[1])
+            # if spec == 'CO2':
+            #     yrange = daily_range_CO2_dict[stat]
+            #     ax[1].set_ylim(yrange[0], yrange[1])
+            # if spec == 'CH4':
+            #     yrange = daily_range_CH4_dict[stat]
+            #     ax[1].set_ylim(yrange[0], yrange[1])
+
+        if alg =='REBS': # do only once the following 
+            ax_abs.plot(non_spiked, label = 'non-spiked', c='black',ls='--', lw=3)
+            ax_abs.set_ylabel('Concentration '+fmt.get_meas_unit(spec))
+            ax_abs.set_xticks(np.arange(0,24,2))        
+            ax_abs.grid()
+            ax_abs.set_xlabel('hours')
+        ax_abs.legend(bbox_to_anchor=(1,1), loc="upper left")
+         
+        ax_diff.set_xlabel('hours')
+        ax_diff.set_ylabel('Concentration difference '+fmt.get_meas_unit(spec))
+        ax_diff.grid(which = 'major')
+        ax_diff.set_xticks(np.arange(0,24,2))
+        ax_diff.grid(b=True, which='minor', linestyle='-', alpha=0.2)
+        
+        if alg=='SD':
+            ax_diff.set_xticklabels(['' for i in range(12)])
+        
+    # array with season name (for filename and title name), months(used for data selection) and relative year (used in title name)
+    log_folder=''
+    log_suff  =''
+    #seasons = [('DJF',[12,3], ' 2019-2020'),('MAM',[3,6], ' 2020'),('JJA',[6,9], ' 2020'),('SON',[9,12], ' 2020') ]
+    seasons = [('DJF',[12,3], ' 2019-2020')]
+    for season in seasons:
+        print(season[0])
+        # fig, ax = plt.subplots(2,2, figsize=(12,8))
+        fig = plt.figure(figsize=(12,8))
+        fig.subplots_adjust(hspace=0.05)
+        ax = []
+        ax.append(plt.subplot2grid((2,2), (0,0)))
+        ax.append(plt.subplot2grid((2,2), (1,0)))
+        ax.append(plt.subplot2grid((2,2), (0,1), rowspan=2))
+        
+        for i in range(len(algorithms)):
+            alg = algorithms[i][0] # read current algorithm name (REBS or SD)
+            
+            if spec == 'CO':
+                if alg =='SD': # define selected parameters
+                    subparams=['0.1','3.0','4.0']
+                else:
+                    subparams=['1','8','10']
+            else:
+                if alg =='SD': # define selected parameters
+                    subparams=['0.1','1.0','4.0']
+                else:
+                    subparams=['1','3','10']
+                    
+            params = algorithms[i][1:len(algorithms[i])] # get list of parameters
+            season_day_data, season_day_data_diff = sel.get_daily_season_data(stat, id, alg, params, spec, height,season[1],season[0])
+            
+            season_day_data_sub, season_day_data_diff_sub = [], [] # define sublists with selected parameters
+            indexes = get_indexes_for_monthly_boxplot(alg, subparams)
+            
+            for k in indexes:
+                season_day_data_sub.append(season_day_data[k+1])
+                season_day_data_diff_sub.append(season_day_data_diff[k])
+                
+            plot_daily_cycle(season_day_data_sub, season_day_data_diff_sub, ax[i], ax[2], alg, params, indexes)
+        if log:
+            log_folder = 'log/'
+            log_suff='_logscale'
+
+        fig.suptitle("Daily mean cycle of concentration: absolute values and difference between non-spiked and spiked data\n"+spec+' at '+stat+' '+id+'   height=' + height + ' m   season='+season[0]+season[2])
+        plt.savefig('./res_plot/'+stat+'/daily_cycle/'+log_folder+'seasonal_daily_cycle_compact_'+season[0]+'_'+stat+'_'+spec+'_'+id+'_h'+height+log_suff+'.png', format='png', bbox_inches="tight", dpi=300)
+        plt.close(fig)
+
+
 def plot_season( stat,  id, algorithms, spec, height,years, log):
     """
     plot seasonal time series. I.E. montlhy median for different algorithms and parameters
@@ -248,6 +378,7 @@ def plot_season( stat,  id, algorithms, spec, height,years, log):
     fig.suptitle("Monthly mean concrentration: absolute values and difference between non-spiked and spiked data\n"+spec+' at '+stat+' '+id+'   height=' + height + ' m')
     plt.savefig('./res_plot/'+stat+'/monthly_mean/'+log_folder+'monthly_mean_'+stat+'_'+spec+'_'+id+'_h'+height+log_suff+'.pdf', format='pdf', bbox_inches="tight")
     plt.close(fig)
+
 
 
 def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):

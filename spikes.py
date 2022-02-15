@@ -18,7 +18,7 @@ import spikes_statistics as stats
 # stations = ['SAC', 'CMN', 'IPR', 'KIT_CO', 'KIT', 'JUS', 'JFJ','PUI','UTO']
 #stations=['JUS','CMN','UTO','PUI']
 stations = ['CMN','PUI','UTO','JFJ','IPR','JUS','SAC','SAC_329','KIT']
-# stations = ['KIT_CO', 'SAC_329']
+#stations = ['SAC']
 # stations = ['SAC_329']
 # stations = ['SAC_329']
 # stations = ['IPR','SAC','KIT']
@@ -65,18 +65,18 @@ custom_events=[]
 # ### #### #### #### #### #### #### #### #### #### #### #### ####
 
 
-# for stat in stations:
-#     config.read('stations.ini') 
-#     heights = config.get(stat, 'height' ).split(',')
-#     species = config.get(stat, 'species').split(',')
-#     ID      = config.get(stat, 'inst_ID').split(',')
-#     stat = stat[0:3] # check used to read also ini file with KIT_CO that is used to read CO data at KIT. In fact CO data use different instruments and a different station has to be defined in the ini file
-#     if custom_events != []:
-#         events=custom_events
-#     else:
-#         events  = fmt.read_events(stat)
-#     print('\nSTATION:', stat)
-#     for id in ID:
+for stat in stations:
+    config.read('stations.ini') 
+    heights = config.get(stat, 'height' ).split(',')
+    species = config.get(stat, 'species').split(',')
+    ID      = config.get(stat, 'inst_ID').split(',')
+    stat = stat[0:3] # check used to read also ini file with KIT_CO that is used to read CO data at KIT. In fact CO data use different instruments and a different station has to be defined in the ini file
+    if custom_events != []:
+        events=custom_events
+    else:
+        events  = fmt.read_events(stat)
+    print('\nSTATION:', stat)
+    for id in ID:
 #         # for algo in algorithms:
 #         #     alg = algo[0] # read current algorithm name (REBS or SD)
 #             # for param in algo [1:len(algo)]: # loop over parameter values
@@ -111,12 +111,12 @@ custom_events=[]
 #                     #                               id=id, 
 #                     #                               heights=heights)
 
-        ## #### plot seasonal cycle #### #### 
-        # for spec in species:
-        #     for h in heights:
-        #         print('plot season and daily cycle', id, spec, h)
-        #         splt.plot_season(stat, id, algorithms, spec, h, years, log=True)
-                #splt.plot_season_daily_cycle(stat, id, algorithms, spec, h, log=True)
+        # #### plot seasonal cycle #### #### 
+        for spec in species:
+            for h in heights:
+                print('plot season and daily cycle', id, spec, h)
+                #splt.plot_season(stat, id, algorithms, spec, h, years, log=True)
+                splt.plot_season_daily_cycle_compact(stat, id, algorithms, spec, h, log=True)
 
         ### #### manual flag analysis #### #### 
         # for spec in species:
