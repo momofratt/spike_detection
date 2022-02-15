@@ -214,41 +214,42 @@ def plot_season_daily_cycle_compact(stat, id, algorithms, spec, height, log):
             #     ax[1].set_ylim(yrange[0], yrange[1])
 
         if alg =='REBS': # do only once the following 
-            ax_abs.plot(non_spiked, label = 'non-spiked', c='black',ls='--', lw=3)
-            ax_abs.fill_between(np.arange(0,24,1), non_spiked-wmo_thresh, non_spiked+wmo_thresh,alpha=0.3)
+            ax_abs.plot(non_spiked, label = 'non-spiked', c='black',ls='--', lw=2)
+            ax_abs.fill_between(np.arange(0,24,1), non_spiked-wmo_thresh, non_spiked+wmo_thresh,color='gray', alpha=0.3)
             ax_abs.set_ylabel('Concentration '+fmt.get_meas_unit(spec))
-            ax_abs.set_xticks(np.arange(0,24,2))        
-            ax_abs.grid()
+            ax_abs.set_xticks(np.arange(0,24,2))
+            ax_abs.grid(True)
             ax_abs.set_xlabel('hours')
         ax_abs.legend(bbox_to_anchor=(1,1), loc="upper left")
-         
+
         ax_diff.set_xlabel('hours')
         ax_diff.set_ylabel('Concentration difference '+fmt.get_meas_unit(spec))
-        ax_diff.grid(which = 'major')
         ax_diff.set_xticks(np.arange(0,24,2))
-        ax_diff.grid(b=True, which='minor', linestyle='-', alpha=0.2)
-        
+        #ax_diff.grid(which = 'major')
+        #ax_diff.grid(b=True, which='minor', linestyle='-', alpha=0.2)
+        ax_diff.grid(True, which='both')
         if alg=='SD':
             ax_diff.set_xticklabels(['' for i in range(12)])
-        
+
     # array with season name (for filename and title name), months(used for data selection) and relative year (used in title name)
     log_folder=''
     log_suff  =''
-    #seasons = [('DJF',[12,3], ' 2019-2020'),('MAM',[3,6], ' 2020'),('JJA',[6,9], ' 2020'),('SON',[9,12], ' 2020') ]
-    seasons = [('DJF',[12,3], ' 2019-2020')]
+    seasons = [('DJF',[12,3], ' 2019-2020'),('MAM',[3,6], ' 2020'),('JJA',[6,9], ' 2020'),('SON',[9,12], ' 2020') ]
+    
     for season in seasons:
         print(season[0])
-        # fig, ax = plt.subplots(2,2, figsize=(12,8))
-        fig = plt.figure(figsize=(12,8))
+        plt.style.use('ggplot')
+
+        fig = plt.figure(figsize=(10,6.6))
         fig.subplots_adjust(hspace=0.05)
         ax = []
         ax.append(plt.subplot2grid((2,2), (0,0)))
         ax.append(plt.subplot2grid((2,2), (1,0)))
         ax.append(plt.subplot2grid((2,2), (0,1), rowspan=2))
-        
+
         for i in range(len(algorithms)):
             alg = algorithms[i][0] # read current algorithm name (REBS or SD)
-            
+
             if spec == 'CO':
                 if alg =='SD': # define selected parameters
                     subparams=['0.1','3.0','4.0']
@@ -259,7 +260,7 @@ def plot_season_daily_cycle_compact(stat, id, algorithms, spec, height, log):
                     subparams=['0.1','1.0','4.0']
                 else:
                     subparams=['1','3','10']
-                    
+
             params = algorithms[i][1:len(algorithms[i])] # get list of parameters
             season_day_data, season_day_data_diff = sel.get_daily_season_data(stat, id, alg, params, spec, height,season[1],season[0])
             non_spiked = np.array(season_day_data[-1])
@@ -267,7 +268,7 @@ def plot_season_daily_cycle_compact(stat, id, algorithms, spec, height, log):
             indexes = get_indexes_for_monthly_boxplot(alg, subparams)
 
             for k in indexes:
-                season_day_data_sub.append(season_day_data[k+1])
+                season_day_data_sub.append(season_day_data[k])
                 season_day_data_diff_sub.append(season_day_data_diff[k])
 
             plot_daily_cycle(season_day_data_sub, season_day_data_diff_sub, non_spiked, ax[i], ax[2], alg, params, indexes)
