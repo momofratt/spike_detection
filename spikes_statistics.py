@@ -33,7 +33,7 @@ def plot_BFOR_parameters(stat, inst_id, algorithms, spec, height, high_spikes, h
     high_spikes : bool
         enable/disable analysis of "high" spikes.
     high_spikes_mode: str
-        'single' or 'distr' . Choose wether to define "high" spikes according to difference of each point rescpect to the baseline or to the quartiles of the difference distribution
+        'single' or 'distr' . Choose wether to define "high" spikes according to difference of each point respect to the baseline or to the quartiles of the difference distribution
     quant: float
         quantile to evaluate the threshold for high spikes
     Returns
@@ -165,6 +165,292 @@ def plot_BFOR_parameters(stat, inst_id, algorithms, spec, height, high_spikes, h
         # ax.set_ylabel('hit rate')
         # plt.savefig('res_plot/'+stat+'/bfor_parameters/ROC_curve_'+stat+'_'+spec+'_h'+str(height)+'_'+alg+'.pdf', format='pdf')
  
+def get_BFOR_parameters(algorithms, stat, height, spec, inst_id, high_spikes, high_spikes_mode, quant):
+        alg = algorithms[0] # read current algorithm name (REBS or SD)
+        params = algorithms[1:len(algorithms)] # get list of parameters
+        B  = np.empty(0)
+        H  = np.empty(0)
+        F  = np.empty(0)
+        OR = np.empty(0)
+        ORSS = np.empty(0)
+        stdev_logOR = np.empty(0)
+        #min_a, min_b, min_c, min_d = 1E10,1E10,1E10,1E10
+        for param in params:
+            infile_spiked = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, height, spec, inst_id)+'_'+ alg +'_'+ param + '_spiked_PIQc_mean'
+            frame = pd.read_csv(infile_spiked, sep=';')     
+
+            if high_spikes:
+               frame = add_high_spikes_col(frame, spec, high_spikes_mode, quant)
+               observed = 'high_spike_'+spec.lower()+'_PIQc' # observed spikes
+            else:
+               observed = 'spike_'+spec.lower()+'_PIQc' # observed spikes
+            
+            forecast = 'spike_'+spec.lower() # forecasted spikes
+
+            a = len(frame[ (frame[forecast]==True ) & (frame[observed]==True ) ])
+            b = len(frame[ (frame[forecast]==True ) & (frame[observed]==False) ])
+            c = len(frame[ (frame[forecast]==False) & (frame[observed]==True ) ])
+            d = len(frame[ (frame[forecast]==False) & (frame[observed]==False) ])
+            B  = np.append( B, (a+b)/(a+c))
+            H  = np.append( H, a/(a+c))
+            F  = np.append( F, b/(b+d))
+            err=0
+            if (b==0) | (c==0):
+                print(alg,param,'ZERO VALUE: b=',b,'c=',c)
+                OR =np.append( OR, np.nan)    
+                ORSS = np.append(ORSS, np.nan)
+                stdev_logOR = np.append(stdev_logOR,0)
+            else:
+                OR = np.append( OR, a*d/b/c)
+                ORSS = np.append(ORSS, (a*d-b*c)/(a*d+b*c))
+                if(a!=0) & (d!=0):
+                    stdev_logOR = np.append(stdev_logOR,(1/a + 1/b + 1/c + 1/d)**0.5)
+                else:
+                    stdev_logOR = np.append(stdev_logOR,0)
+                    print(alg,param,'ZERO VALUE: a=',a,'d=',d)
+                if (a<5) |(b<5) |(c<5) |(d<5):
+                    print(alg,param,'COUNT < 5:',a,b,c,d)
+                    OR[-1]=np.nan
+                    ORSS[-1]=np.nan
+                    err=1
+            logOR=np.log(OR)    
+            
+            #if a < min_a:
+            #    min_a=a
+            #if b < min_b:
+            #    min_b=b
+            #if c < min_c:
+            #    min_c=c
+            #if d < min_d:
+            #    min_d=d
+            
+        return H, F, B, ORSS
+
+ 
+ 
+def plot_BFOR_parameters_sdrebs(stat, inst_id, algorithms, spec, height, high_spikes, high_spikes_mode, quant):
+    """
+    plot results from statistical analysis of PIQc and automatic flagging. Produce two plots with SD and REBS side by side
+    Parameters
+    ----------
+    stat : str
+        station name.
+    inst_id : str
+        instrument id.
+    algorithms : 2D list
+        list containing algorithms names and parameters values.
+    spec : str
+        specie.
+    height : str
+        sampling height.
+    high_spikes : bool
+        enable/disable analysis of "high" spikes.
+    high_spikes_mode: str
+        'single' or 'distr' . Choose wether to define "high" spikes according to difference of each point respect to the baseline or to the quartiles of the difference distribution
+    quant: float
+        quantile to evaluate the threshold for high spikes
+    Returns
+    -------
+    None.
+    """
+    
+    if high_spikes:
+       high_spikes_str  = ' - high spikes (>'+str(min_ampl_dict[spec])+' '+fmt.get_meas_unit(spec)+')'
+       high_spikes_suff = '_high'
+    else:
+       high_spikes_str  = ''
+       high_spikes_suff = ''
+    
+    H, F, B, ORSS, params = [], [], [], [], [] # 2d lists with results from SD and REBS
+    alg_names = []
+    
+    for algo in algorithms:
+        h, f, b, orss = get_BFOR_parameters(algo, stat, height, spec, inst_id, high_spikes, high_spikes_mode, quant)
+        H.append(h)
+        F.append(f)
+        B.append(b)
+        ORSS.append(orss)
+        alg_names.append(algo[0])
+        params.append(algo[1:len(algo)])
+        
+    # # plot parameters
+    fig, ax = plt.subplots(1,2, figsize=(8,5))
+    plt.style.use('ggplot')
+    
+    fig.subplots_adjust(wspace=0.05)
+   
+    max_bias = max([max(b) for b in B ])
+    
+    for i in range(2):
+        labels=[str(p) for p in params[i]]
+        ax[i].plot(H[i], label='H', color = 'C1', ls='--')
+        ax[i].plot(F[i], label='F', color = 'C1', ls=':')
+        ax[i].plot(H[i]-F[i], label = 'PSS', color='C1')
+        ax[i].plot(ORSS[i], label = 'ORSS', color = 'C3')
+    
+        ax[i].set_xticks(np.arange(0,len(params[i]),1))
+        ax[i].set_xticklabels(labels)
+        ax[i].set_yticks(np.arange(0,1.1,0.1))
+        #ax[i].set_yticklabels(str l for l in np.arange())
+        # t=ax.text(1.3,  0.2, 'min a= '+str(min_a)+'\nmin b= '+str(min_b)+'\nmin c= '+str(min_c)+'\nmin d= '+str(min_d), horizontalalignment='center', size='large', color='black',transform=ax.transAxes)                                              
+        # t.set_bbox(dict(facecolor='grey', alpha=0.3))
+        ax[i].set_xlabel(alg_names[i])
+        ax[i].set_ylim(0,1.05)
+        if (min(ORSS[i])<0) & (min(ORSS[i])>-100):
+            ax[i].set_ylim(min(ORSS)-0.1,1.05)
+    
+        if spec=='CO':
+            if alg_names[0]=='REBS':
+                ax[i].axvline(7,c='black',ls=':')  
+            elif alg_names[0]=='SD':
+                ax[i].axvline(6,c='black',ls=':')
+        else:
+            if alg_names[0]=='REBS':
+                ax[i].axvline(2,c='black',ls=':')  
+            elif alg_names[0]=='SD':
+                ax[i].axvline(2,c='black',ls=':')
+        
+        ax2 = ax[i].twinx()
+        ax2.plot(B[i], label = 'BIAS', color = 'C2')
+        #ax2.errorbar(np.arange(0,len(logOR),1), logOR, stdev_logOR,elinewidth=1, capsize =5, ls='none', fmt="o", color = 'C2', label = 'log OR')
+        ax2.axhline(1, c='C2',ls=':',lw=3)
+        ax2.tick_params('y',which='both', colors='C2')
+        ax2.grid(visible=False)
+        if max_bias>1.5:
+            ax2.set_ylim(0, max_bias*1.05)        
+        else:
+            ax2.set_ylim(0, 1.5)
+        
+        if i ==0:
+            ax2.tick_params(axis='y', right=False, labelright=False)
+        
+        if i>0: # legend only on second plot
+            ax2.legend(  loc=[1.15,0.6])
+            ax[i].legend(loc=[1.15,0.7])
+            ax[i].tick_params(axis='y', left=False, labelleft=False)
+        if max_bias>10:
+            ax2.set_ylim(0.1,max_bias*1.05)
+            ax2.set_yscale('log')
+        ax[i].grid(visible=True)
+    # write infos on spike percentage
+    #stat_text = 'PIQc spikes = '+str(round((a+c)/(a+b+c+d)*100,2))+'%'
+    #t1=ax.text(1.05,  0.05, stat_text, horizontalalignment='left', size='large', color='black',transform=ax.transAxes)
+    #t1.set_bbox(dict(facecolor='tan', alpha=0.3))
+    fig.suptitle('Statistical parameters\nstation: '+stat+'  h='+str(height)+'   spec='+spec+high_spikes_str)
+    fig.tight_layout()
+    plt.savefig('res_plot/'+stat+'/bfor_parameters/bfor_parameters_sdrebs_'+stat+'_'+spec+'_h'+str(height)+'_'+algo[0]+high_spikes_suff+'.png', format='png', bbox_inches="tight")
+
+
+def plot_BFOR_parameters_lowhigh(stat, inst_id, algorithms, spec, height,  high_spikes_mode, quant):
+    """
+    plot results from statistical analysis of PIQc and automatic flagging. Produce two plots with results from low and high spikes analysis
+    Parameters
+    ----------
+    stat : str
+        station name.
+    inst_id : str
+        instrument id.
+    algorithms : 2D list
+        list containing algorithms names and parameters values.
+    spec : str
+        specie.
+    height : str
+        sampling height.
+    high_spikes : bool
+        enable/disable analysis of "high" spikes.
+    high_spikes_mode: str
+        'single' or 'distr' . Choose wether to define "high" spikes according to difference of each point respect to the baseline or to the quartiles of the difference distribution
+    quant: float
+        quantile to evaluate the threshold for high spikes
+    Returns
+    -------
+    None.
+    """
+    
+    high_spikes_str  = ' - low and high spikes (>'+str(min_ampl_dict[spec])+' '+fmt.get_meas_unit(spec)+')'
+  
+    H, F, B, ORSS, params = [], [], [], [], [] # 2d lists with results from SD and REBS
+    alg_names = []
+    
+    for algo in algorithms:
+        for high_spikes in [False, True]: # get results from low and high spikes flagging
+            h, f, b, orss = get_BFOR_parameters(algo, stat, height, spec, inst_id, high_spikes, high_spikes_mode, quant)
+            H.append(h)
+            F.append(f)
+            B.append(b)
+            ORSS.append(orss)
+            alg_names.append(algo[0])
+            params.append(algo[1:len(algo)])
+    
+    for k in [0,2]:
+        # # plot parameters
+        fig, ax = plt.subplots(1,2, figsize=(8,5))
+        plt.style.use('ggplot')
+        
+        fig.subplots_adjust(wspace=0.05)
+       
+        max_bias = max([max(b) for b in B[k:k+2] ])
+        
+        for i in range(2):
+            labels=[str(p) for p in params[k+i]]
+            ax[i].plot(H[k+i], label='H', color = 'C1', ls='--')
+            ax[i].plot(F[k+i], label='F', color = 'C1', ls=':')
+            ax[i].plot(H[k+i]-F[k+i], label = 'PSS', color='C1')
+            ax[i].plot(ORSS[k+i], label = 'ORSS', color = 'C3')
+        
+            ax[i].set_xticks(np.arange(0,len(params[k+i]),1))
+            ax[i].set_xticklabels(labels)
+            ax[i].set_yticks(np.arange(0,1.1,0.1))
+            #ax[i].set_yticklabels(str l for l in np.arange())
+            # t=ax.text(1.3,  0.2, 'min a= '+str(min_a)+'\nmin b= '+str(min_b)+'\nmin c= '+str(min_c)+'\nmin d= '+str(min_d), horizontalalignment='center', size='large', color='black',transform=ax.transAxes)                                              
+            # t.set_bbox(dict(facecolor='grey', alpha=0.3))
+            ax[i].set_xlabel(alg_names[k+i])
+            ax[i].set_ylim(0,1.05)
+            if (min(ORSS[k+i])<0) & (min(ORSS[k+i])>-100):
+                ax[i].set_ylim(min(ORSS)-0.1,1.05)
+        
+            if spec=='CO':
+                if alg_names[0]=='REBS':
+                    ax[i].axvline(7,c='black',ls=':')  
+                elif alg_names[0]=='SD':
+                    ax[i].axvline(6,c='black',ls=':')
+            else:
+                if alg_names[0]=='REBS':
+                    ax[i].axvline(2,c='black',ls=':')  
+                elif alg_names[0]=='SD':
+                    ax[i].axvline(2,c='black',ls=':')
+            
+            ax2 = ax[i].twinx()
+            ax2.plot(B[k+i], label = 'BIAS', color = 'C2')
+            #ax2.errorbar(np.arange(0,len(logOR),1), logOR, stdev_logOR,elinewidth=1, capsize =5, ls='none', fmt="o", color = 'C2', label = 'log OR')
+            ax2.axhline(1, c='C2',ls=':',lw=3)
+            ax2.tick_params('y',which='both', colors='C2')
+            ax2.grid(visible=False)
+            if max_bias>1.5:
+                ax2.set_ylim(0, max_bias*1.05)        
+            else:
+                ax2.set_ylim(0, 1.5)
+            
+            if i ==0:
+                ax2.tick_params(axis='y', right=False, labelright=False)
+            
+            if i>0: # legend only on second plot
+                ax2.legend(  loc=[1.15,0.6])
+                ax[i].legend(loc=[1.15,0.7])
+                ax[i].tick_params(axis='y', left=False, labelleft=False)
+            if max_bias>10:
+                ax2.set_ylim(0.1,max_bias*1.05)
+                ax2.set_yscale('log')
+            ax[i].grid(visible=True)
+        # write infos on spike percentage
+        #stat_text = 'PIQc spikes = '+str(round((a+c)/(a+b+c+d)*100,2))+'%'
+        #t1=ax.text(1.05,  0.05, stat_text, horizontalalignment='left', size='large', color='black',transform=ax.transAxes)
+        #t1.set_bbox(dict(facecolor='tan', alpha=0.3))
+        fig.suptitle('Statistical parameters\nstation: '+stat+'  h='+str(height)+'   spec='+spec+high_spikes_str)
+        fig.tight_layout()
+        plt.savefig('res_plot/'+stat+'/bfor_parameters/bfor_parameters_lowhigh_'+stat+'_'+spec+'_h'+str(height)+'_'+alg_names[k]+'.png', format='png', bbox_inches="tight")
+
+
     
 def get_threshold(df, spec, mode, quant):
     if mode =='single':
