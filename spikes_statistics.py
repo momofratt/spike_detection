@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import spikes_formatting_functions as fmt
 import pandas as pd 
+from configparser import ConfigParser
 
 min_ampl_dict = {'CO2': 0.5, 'CO':2, 'CH4': 2}
 
@@ -165,69 +166,184 @@ def plot_BFOR_parameters(stat, inst_id, algorithms, spec, height, high_spikes, h
         # ax.set_ylabel('hit rate')
         # plt.savefig('res_plot/'+stat+'/bfor_parameters/ROC_curve_'+stat+'_'+spec+'_h'+str(height)+'_'+alg+'.pdf', format='pdf')
  
-def get_BFOR_parameters(algorithms, stat, height, spec, inst_id, high_spikes, high_spikes_mode, quant):
-        alg = algorithms[0] # read current algorithm name (REBS or SD)
-        params = algorithms[1:len(algorithms)] # get list of parameters
-        B  = np.empty(0)
-        H  = np.empty(0)
-        F  = np.empty(0)
-        OR = np.empty(0)
-        ORSS = np.empty(0)
-        stdev_logOR = np.empty(0)
-        #min_a, min_b, min_c, min_d = 1E10,1E10,1E10,1E10
-        for param in params:
-            infile_spiked = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, height, spec, inst_id)+'_'+ alg +'_'+ param + '_spiked_PIQc_mean'
-            frame = pd.read_csv(infile_spiked, sep=';')     
-
-            if high_spikes:
-               frame = add_high_spikes_col(frame, spec, high_spikes_mode, quant)
-               observed = 'high_spike_'+spec.lower()+'_PIQc' # observed spikes
-            else:
-               observed = 'spike_'+spec.lower()+'_PIQc' # observed spikes
+def get_standard_parameter_index(alg, params, spec):
+        
+        if (spec == 'CO2') or (spec =='CH4'):    
+            std_params_dict = {'SD':'1.0', 'REBS':'3.0'}
+        elif (spec == 'CO'):
+            std_params_dict = {'SD':'3.0', 'REBS':'8.0'}
             
-            forecast = 'spike_'+spec.lower() # forecasted spikes
+        param_sd   = std_params_dict['SD']
+        param_rebs = std_params_dict['REBS']
+        
+        i_sd, i_rebs = 0, 0 
+        i=0
+        for p in params:
+            if p == param_sd:
+                i_sd   = i
+            elif p == param_rebs:
+                i_rebs = i
+            i+=1
+                
+        return i_sd, i_rebs
+ 
+def get_BFOR_parameters(algorithms, stat, height, spec, inst_id, high_spikes, high_spikes_mode, quant, all_std):
+    """
+    Parameters
+    ----------
+    algorithms : list
+        list with algorithm name ('SD' or 'REBS') as first element and parameters values after
+    stat : str
+        station name
+    height : str
+        sampling altitude
+    spec : str
+        chemical specie
+    inst_id : str
+        instrument ID
+    high_spikes : bool
+        wether to analyze high or low spikes
+    high_spikes_mode : str
+        see add_high_spikes_col() documentation
+    quant : str
+        see add_high_spikes_col() documentation
+    all_std : str
+        wether to analyze all the parameters or only the standard ones, or one given parameter. Select 'std' to get results for the standard parameters, 
+        'all' to get results for all the parameters, one single parameter (e.g. '5' for REBS 5) to get results for that parameter
+    Returns
+    -------
+    H,F,B,ORSS :
+        lists with H,F,B and ORSS values for the different parameters.
+    """
+    
+    alg = algorithms[0] # read current algorithm name (REBS or SD)
+    params = algorithms[1:len(algorithms)] # get list of parameters
+    B  = np.empty(0)
+    H  = np.empty(0)
+    F  = np.empty(0)
+    OR = np.empty(0)
+    ORSS = np.empty(0)
+    stdev_logOR = np.empty(0)
+    #min_a, min_b, min_c, min_d = 1E10,1E10,1E10,1E10
+    
+    if all_std == 'std': # return only results for standard parameters
+        i_std_sd, i_std_rebs = get_standard_parameter_index(alg, params, spec)
+        if alg == 'SD':
+            params = [str(params[i_std_sd])]
+        if alg == 'REBS':
+            params = [str(params[i_std_rebs])]
+        print('std params',alg, params)
+    elif all_std == 'all':
+        params = params
+    else: # single parameter case
+        params = [all_std]
+        
+    for param in params:
+        infile_spiked = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, height, spec, inst_id)+'_'+ alg +'_'+ param + '_spiked_PIQc_mean'
+        frame = pd.read_csv(infile_spiked, sep=';')     
 
-            a = len(frame[ (frame[forecast]==True ) & (frame[observed]==True ) ])
-            b = len(frame[ (frame[forecast]==True ) & (frame[observed]==False) ])
-            c = len(frame[ (frame[forecast]==False) & (frame[observed]==True ) ])
-            d = len(frame[ (frame[forecast]==False) & (frame[observed]==False) ])
-            B  = np.append( B, (a+b)/(a+c))
-            H  = np.append( H, a/(a+c))
-            F  = np.append( F, b/(b+d))
-            err=0
-            if (b==0) | (c==0):
-                print(alg,param,'ZERO VALUE: b=',b,'c=',c)
-                OR =np.append( OR, np.nan)    
-                ORSS = np.append(ORSS, np.nan)
+        if high_spikes:
+           frame = add_high_spikes_col(frame, spec, high_spikes_mode, quant)
+           observed = 'high_spike_'+spec.lower()+'_PIQc' # observed spikes
+        else:
+           observed = 'spike_'+spec.lower()+'_PIQc' # observed spikes
+        
+        forecast = 'spike_'+spec.lower() # forecasted spikes
+
+        a = len(frame[ (frame[forecast]==True ) & (frame[observed]==True ) ])
+        b = len(frame[ (frame[forecast]==True ) & (frame[observed]==False) ])
+        c = len(frame[ (frame[forecast]==False) & (frame[observed]==True ) ])
+        d = len(frame[ (frame[forecast]==False) & (frame[observed]==False) ])
+        B  = np.append( B, (a+b)/(a+c))
+        H  = np.append( H, a/(a+c))
+        F  = np.append( F, b/(b+d))
+        err=0
+        if (b==0) | (c==0):
+            print(alg,param,'ZERO VALUE: b=',b,'c=',c)
+            OR =np.append( OR, np.nan)    
+            ORSS = np.append(ORSS, np.nan)
+            stdev_logOR = np.append(stdev_logOR,0)
+        else:
+            OR = np.append( OR, a*d/b/c)
+            ORSS = np.append(ORSS, (a*d-b*c)/(a*d+b*c))
+            if(a!=0) & (d!=0):
+                stdev_logOR = np.append(stdev_logOR,(1/a + 1/b + 1/c + 1/d)**0.5)
+            else:
                 stdev_logOR = np.append(stdev_logOR,0)
-            else:
-                OR = np.append( OR, a*d/b/c)
-                ORSS = np.append(ORSS, (a*d-b*c)/(a*d+b*c))
-                if(a!=0) & (d!=0):
-                    stdev_logOR = np.append(stdev_logOR,(1/a + 1/b + 1/c + 1/d)**0.5)
-                else:
-                    stdev_logOR = np.append(stdev_logOR,0)
-                    print(alg,param,'ZERO VALUE: a=',a,'d=',d)
-                if (a<5) |(b<5) |(c<5) |(d<5):
-                    print(alg,param,'COUNT < 5:',a,b,c,d)
-                    OR[-1]=np.nan
-                    ORSS[-1]=np.nan
-                    err=1
-            logOR=np.log(OR)    
-            
-            #if a < min_a:
-            #    min_a=a
-            #if b < min_b:
-            #    min_b=b
-            #if c < min_c:
-            #    min_c=c
-            #if d < min_d:
-            #    min_d=d
-            
-        return H, F, B, ORSS
+                print(alg,param,'ZERO VALUE: a=',a,'d=',d)
+            if (a<5) |(b<5) |(c<5) |(d<5):
+                print(alg,param,'COUNT < 5:',a,b,c,d)
+                OR[-1]=np.nan
+                ORSS[-1]=np.nan
+                err=1
+        logOR=np.log(OR)    
+        
+        #if a < min_a:
+        #    min_a=a
+        #if b < min_b:
+        #    min_b=b
+        #if c < min_c:
+        #    min_c=c
+        #if d < min_d:
+        #    min_d=d
+        
+    return H, F, B, ORSS
 
- 
- 
+def BFOR_table(stations, algorithms, high_spikes, high_spikes_mode, quant): 
+    config=ConfigParser()
+    
+    if high_spikes:
+        high_suff = '_high'
+    else:
+        high_suff = ''
+    
+    
+    try:
+        best_frame = pd.read_csv('./tabelle_manual_flagging/table_bfor_best'+high_suff+'.txt', sep=' ', dtype=str) 
+        best=True
+    except:
+        print('Warning: best params table not found\n')
+        best=False
+    
+    out_table = open('./tabelle_manual_flagging/table_bfor'+high_suff+'.txt', 'w')
+    out_table.write('station specie algorithm H F B')
+
+    if not best:
+        out_table.write('\n')
+    if best:
+        out_table.write(' best_par bH bF bB\n')
+        
+    for stat in stations:
+        config.read('stations.ini') 
+        heights = config.get(stat, 'height' ).split(',')
+        species = config.get(stat, 'species').split(',')
+        ID      = config.get(stat, 'inst_ID').split(',')
+        ID = ID[-1]
+        max_height = heights[-1] # get higher sampling altitude
+        for spec in species:
+            for algo in algorithms:
+                H, F, B, ORSS = get_BFOR_parameters(algo, stat, max_height, spec, ID, high_spikes, high_spikes_mode, quant, all_std = 'std')
+                
+                if best:
+                    best_param = str(best_frame[(best_frame['station']==stat) & (best_frame['specie']==spec)& (best_frame['algorithm']==algo[0])]['best'].iat[0])
+                    if float(best_param) < 11:
+                        best_H, best_F, best_B, best_ORSS = get_BFOR_parameters(algo, stat, max_height, spec, ID, high_spikes, high_spikes_mode, quant, all_std = best_param)
+                    else:
+                        best_H, best_F, best_B = [999], [999], [999]
+                        
+                out_table.write(str(stat)+' '+str(spec)+' '+str(algo[0])+' '+str(round(H[0],2))+' '+
+                                str(round(F[0],2))+' '+str(round(B[0],1)))
+                if not best:
+                    out_table.write('\n')
+                    
+                if best:
+                    out_table.write(' '+str(best_param)+' '+
+                                str(round(best_H[0],2))+' '+
+                                str(round(best_F[0],2))+' '+
+                                str(round(best_B[0],1))+'\n')
+    
+    out_table.close()
+    
 def plot_BFOR_parameters_sdrebs(stat, inst_id, algorithms, spec, height, high_spikes, high_spikes_mode, quant):
     """
     plot results from statistical analysis of PIQc and automatic flagging. Produce two plots with SD and REBS side by side
@@ -265,7 +381,7 @@ def plot_BFOR_parameters_sdrebs(stat, inst_id, algorithms, spec, height, high_sp
     alg_names = []
     
     for algo in algorithms:
-        h, f, b, orss = get_BFOR_parameters(algo, stat, height, spec, inst_id, high_spikes, high_spikes_mode, quant)
+        h, f, b, orss = get_BFOR_parameters(algo, stat, height, spec, inst_id, high_spikes, high_spikes_mode, quant, all_std='all')
         H.append(h)
         F.append(f)
         B.append(b)
@@ -374,7 +490,7 @@ def plot_BFOR_parameters_lowhigh(stat, inst_id, algorithms, spec, height,  high_
     
     for algo in algorithms:
         for high_spikes in [False, True]: # get results from low and high spikes flagging
-            h, f, b, orss = get_BFOR_parameters(algo, stat, height, spec, inst_id, high_spikes, high_spikes_mode, quant)
+            h, f, b, orss = get_BFOR_parameters(algo, stat, height, spec, inst_id, high_spikes, high_spikes_mode, quant, all_std='all')
             H.append(h)
             F.append(f)
             B.append(b)
