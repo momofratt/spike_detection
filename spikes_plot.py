@@ -600,7 +600,7 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
                 x_line = []
                 for k in range(len(heights)):
                     y_line = y_line + monthly_data_diff_all_stat[j][l]
-                    x_line = x_line + [ stat[0:3]+'-'+config.get(stat, 'inst_ID')[-3:]+' - '+ heights[k]+' m' for a in range(len(monthly_data_diff_all_stat[j][l])) ]
+                    x_line = x_line + [ stat[0:3]+'-'+config.get(stat, 'inst_ID')+' - '+ heights[k]+' m' for a in range(len(monthly_data_diff_all_stat[j][l])) ]
                     j+=1
                 x = x + x_line
             y.append(y_line)

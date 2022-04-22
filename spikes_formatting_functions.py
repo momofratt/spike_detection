@@ -85,6 +85,8 @@ def get_L1_file_name(station, height, specie, inst_ID):
     # example for filename: IPR_2019-01-01T00:00:00_2020-12-31T23:59:58_60.0_619_C_minute.CO2
     print(station, height, specie, inst_ID)
     file_nm = station[0:3]+'_2019-01-01T00:00:00_2020-12-31T23:59:58_'+height+'_'+inst_ID+'_C_minute.'+specie
+    if station[0:3]=='PDM':
+        file_nm = station[0:3]+'_2014-11-01T00:00:00_2015-12-31T23:59:58_'+height+'_'+inst_ID+'_C_minute.'+specie
     return file_nm
 
 def get_spike_file_path(method, param):
@@ -130,7 +132,7 @@ def get_spike_file_name(station, param, method, inst_ID):
     file_nm: str
         file name
     """
-    single_instrument_stations = ['CMN', 'IPR','PUI'] #stations with single instruments have no inst_ID in the datafile
+    single_instrument_stations = ['CMN', 'IPR','PUI','PDM'] #stations with single instruments have no inst_ID in the datafile
     # example for filename: JFJ-226-0.1.spikes
     if method == 'SD':
         if (station in single_instrument_stations):

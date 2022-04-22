@@ -106,8 +106,9 @@ def plot_BFOR_parameters(stat, inst_id, algorithms, spec, height, high_spikes, h
         fig, ax = plt.subplots(1,1)
         fig.suptitle('Statistical parameters\nstation: '+stat+'  h='+str(height)+'   spec='+spec+high_spikes_str)
         labels=[str(p) for p in params]
-        ax.plot(H, label='hit rate', color = 'C1', ls='--')
-        ax.plot(F, label='false alarm rate', color = 'C1', ls=':')
+
+        ax.plot(H, label='hit rate', color = 'C1', ls='.')
+        ax.plot(F, label='false alarm rate', color = 'C1', ls='.')
         ax.plot(H-F, label = 'H-F', color='C1')
         ax.plot(ORSS, label = 'ORSS', color = 'C3')
 
@@ -399,6 +400,12 @@ def plot_BFOR_parameters_sdrebs(stat, inst_id, algorithms, spec, height, high_sp
     
     for i in range(2):
         labels=[str(p) for p in params[i]]
+        if len(params[i])==1: # draw points if there is only one parameter
+            ax[i].scatter(params[i][0], H[i], label='hit rate', color = 'C1',marker='o')
+            ax[i].scatter(params[i][0], F[i], label='false alarm rate', color = 'C1', marker='^')
+            ax[i].scatter(params[i][0],H[i]-F[i], label = 'H-F', color='C1',marker='.')
+            ax[i].scatter(params[i][0],ORSS[i], label = 'ORSS', color = 'C3',marker='o')
+            
         ax[i].plot(H[i], label='H', color = 'C1', ls='--')
         ax[i].plot(F[i], label='F', color = 'C1', ls=':')
         ax[i].plot(H[i]-F[i], label = 'PSS', color='C1')
