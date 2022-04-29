@@ -170,23 +170,20 @@ def plot_BFOR_parameters(stat, inst_id, algorithms, spec, height, high_spikes, h
 def get_standard_parameter_index(alg, params, spec):
         
         if (spec == 'CO2') or (spec =='CH4'):    
-            std_params_dict = {'SD':'1.0', 'REBS':'3.0'}
+            std_params_dict = {'SD':'1.0', 'REBS':'3'}
         elif (spec == 'CO'):
-            std_params_dict = {'SD':'3.0', 'REBS':'8.0'}
+            std_params_dict = {'SD':'3.0', 'REBS':'8'}
             
-        param_sd   = std_params_dict['SD']
-        param_rebs = std_params_dict['REBS']
+        param   = std_params_dict[alg]
         
-        i_sd, i_rebs = 0, 0 
+        i_std = 0
         i=0
         for p in params:
-            if p == param_sd:
-                i_sd   = i
-            elif p == param_rebs:
-                i_rebs = i
+            if p == param:
+                i_std   = i
             i+=1
                 
-        return i_sd, i_rebs
+        return i_std
  
 def get_BFOR_parameters(algorithms, stat, height, spec, inst_id, high_spikes, high_spikes_mode, quant, all_std):
     """
@@ -209,7 +206,7 @@ def get_BFOR_parameters(algorithms, stat, height, spec, inst_id, high_spikes, hi
     quant : str
         see add_high_spikes_col() documentation
     all_std : str
-        wether to analyze all the parameters or only the standard ones, or one given parameter. Select 'std' to get results for the standard parameters, 
+        wether to return all the parameters or only the standard ones, or one given parameter. Select 'std' to get results for the standard parameters, 
         'all' to get results for all the parameters, one single parameter (e.g. '5' for REBS 5) to get results for that parameter
     Returns
     -------
@@ -228,10 +225,13 @@ def get_BFOR_parameters(algorithms, stat, height, spec, inst_id, high_spikes, hi
     #min_a, min_b, min_c, min_d = 1E10,1E10,1E10,1E10
     
     if all_std == 'std': # return only results for standard parameters
-        i_std_sd, i_std_rebs = get_standard_parameter_index(alg, params, spec)
+        #i_std_sd, i_std_rebs = get_standard_parameter_index(alg, params, spec)
+       # print(i_std_sd, i_std_rebs)
         if alg == 'SD':
+            i_std_sd = get_standard_parameter_index(alg, params, spec)
             params = [str(params[i_std_sd])]
         if alg == 'REBS':
+            i_std_rebs = get_standard_parameter_index(alg, params, spec)
             params = [str(params[i_std_rebs])]
         print('std params',alg, params)
     elif all_std == 'all':
@@ -326,6 +326,7 @@ def BFOR_table(stations, algorithms, high_spikes, high_spikes_mode, quant):
                 H, F, B, ORSS = get_BFOR_parameters(algo, stat, max_height, spec, ID, high_spikes, high_spikes_mode, quant, all_std = 'std')
                 
                 if best:
+                    
                     best_param = str(best_frame[(best_frame['station']==stat) & (best_frame['specie']==spec)& (best_frame['algorithm']==algo[0])]['best'].iat[0])
                     if float(best_param) < 11:
                         best_H, best_F, best_B, best_ORSS = get_BFOR_parameters(algo, stat, max_height, spec, ID, high_spikes, high_spikes_mode, quant, all_std = best_param)

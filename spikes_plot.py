@@ -20,6 +20,7 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from spikes_statistics import min_ampl_dict
 from configparser import ConfigParser
+import plotly.graph_objects as go
 
 monthly_range_CO_dict  = {'SAC':[90,240], 'CMN':[90,150], 'IPR':[120,470], 'KIT':[100,300], 'JUS':[90,350], 'JFJ':[90,150],'PUI':[],'UTO':[80,170]}
 monthly_range_CO2_dict = {'SAC':[405,440], 'CMN':[400,425], 'IPR':[405,480], 'KIT':[405,480], 'JUS':[410,460], 'JFJ':[400,425],'PUI':[390,430],'UTO':[400,425]}
