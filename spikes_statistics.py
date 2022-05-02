@@ -496,7 +496,7 @@ def plot_BFOR_parameters_lowhigh(stat, inst_id, algorithms, spec, height,  high_
     H, F, B, ORSS, params = [], [], [], [], [] # 2d lists with results from SD and REBS
     alg_names = []
     
-    for algo in algorithms:
+    for algo in algorithms: # a list of four lists for each H,F,B and ORSS is created. The first two lists correspond to results from the first algorithm, the 3rd and the 4th o the second algorithm
         for high_spikes in [False, True]: # get results from low and high spikes flagging
             h, f, b, orss = get_BFOR_parameters(algo, stat, height, spec, inst_id, high_spikes, high_spikes_mode, quant, all_std='all')
             H.append(h)
@@ -514,14 +514,22 @@ def plot_BFOR_parameters_lowhigh(stat, inst_id, algorithms, spec, height,  high_
         fig.subplots_adjust(wspace=0.05)
        
         max_bias = max([max(b) for b in B[k:k+2] ])
-        
         for i in range(2):
+            
+            if len(params[k+i])==1:  # draw points if there is only one parameter
+                ax[i].scatter(params[k+i][0],H[k+i], label='H', color = 'C1', marker='o')
+                ax[i].scatter(params[k+i][0],F[k+i], label='F', color = 'C1', marker='^')
+                ax[i].scatter(params[k+i][0],H[k+i]-F[k+i], label = 'PSS', color='C1',marker='.')
+                ax[i].scatter(params[k+i][0],ORSS[k+i], label = 'ORSS', color = 'C3',marker='o') 
+            
+            else:
+                ax[i].plot(H[k+i], label='H', color = 'C1', ls='--')
+                ax[i].plot(F[k+i], label='F', color = 'C1', ls=':')
+                ax[i].plot(H[k+i]-F[k+i], label = 'PSS', color='C1')
+                ax[i].plot(ORSS[k+i], label = 'ORSS', color = 'C3')
+            
             labels=[str(p) for p in params[k+i]]
-            ax[i].plot(H[k+i], label='H', color = 'C1', ls='--')
-            ax[i].plot(F[k+i], label='F', color = 'C1', ls=':')
-            ax[i].plot(H[k+i]-F[k+i], label = 'PSS', color='C1')
-            ax[i].plot(ORSS[k+i], label = 'ORSS', color = 'C3')
-        
+
             ax[i].set_xticks(np.arange(0,len(params[k+i]),1))
             ax[i].set_xticklabels(labels)
             ax[i].set_yticks(np.arange(0,1.1,0.1))
@@ -545,7 +553,10 @@ def plot_BFOR_parameters_lowhigh(stat, inst_id, algorithms, spec, height,  high_
                     ax[i].axvline(2,c='black',ls=':')
             
             ax2 = ax[i].twinx()
-            ax2.plot(B[k+i], label = 'BIAS', color = 'C2')
+            if len(params[k+i])==1:  # draw points if there is only one parameter
+                ax2.scatter(params[k+i][0] ,B[k+i], label = 'BIAS', color = 'C2')
+            else:
+                ax2.plot(B[k+i], label = 'BIAS', color = 'C2')
             #ax2.errorbar(np.arange(0,len(logOR),1), logOR, stdev_logOR,elinewidth=1, capsize =5, ls='none', fmt="o", color = 'C2', label = 'log OR')
             ax2.axhline(1, c='C2',ls=':',lw=3)
             ax2.tick_params('y',which='both', colors='C2')

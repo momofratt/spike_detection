@@ -51,7 +51,7 @@ for algo in algorithms:
         out_frame = out_frame.merge(frame_tdf[['Datetime','GET_corr']], how = 'left',  on='Datetime' ) # add spike column with True values corresponding to spikes
         out_frame.insert(5,'ch4_diff',np.abs(out_frame['ch4']-out_frame['GET_corr']))
 
-        out_frame.loc[out_frame['ch4_diff']>4, 'spike_ch4_PIQc']=True
+        out_frame.loc[out_frame['ch4_diff']>6, 'spike_ch4_PIQc']=True
         del out_frame['ch4_diff'], out_frame['GET_corr']
         infile_spiked = './data-minute-spiked/PDM/' + fmt.get_L1_file_name('PDM', heights[0], 'CH4', ID[0])+'_'+ algo[0] +'_'+ param + '_spiked' # write "spiked" dataframe on file
         out_filename = infile_spiked + '_PIQc'
