@@ -589,7 +589,7 @@ def plot_BFOR_parameters_lowhigh(stat, inst_id, algorithms, spec, height,  high_
     
 def get_threshold(df, spec, mode, quant):
     if mode =='single':
-        min_diff = min_ampl_dict[spec] 
+        min_diff = min_ampl_dict[spec.upper()] 
     elif mode =='distr':
         min_diff = df[df['spike_'+spec.lower()+'_PIQc']]['spike_amplitude_'+spec.lower()+'_PIQc'].quantile(q=quant) # set the quantile as min difference
     else:

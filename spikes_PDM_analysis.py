@@ -12,6 +12,7 @@ import plotly.graph_objects as go
 import numpy as np
 import spikes_formatting_functions as fmt
 import spikes_data_selection_functions as sel
+import spikes_statistics as stats
 from configparser import ConfigParser
 
 frame_tdf = pd.read_csv('./data-minute/PDM-minute-data/pdm_ete_2015/tdf_ch4_all_synchro.txt', sep=' ')
@@ -32,7 +33,8 @@ ID      = config.get('PDM', 'inst_ID').split(',')
 events  = fmt.read_events('PDM')
 
 algorithms = [['SD', '1.0'],  ['REBS', '3','5']]
-
+fig, ax = plt.subplots(1,3,figsize=(15,5))
+i = 0
 for algo in algorithms:
     for param in algo[1:len(algo)+1]:
         spike_frame = fmt.read_spike_file(algo[0], param, 'PDM', '10.0', '222')
@@ -58,7 +60,27 @@ for algo in algorithms:
 
         out_frame.to_csv(out_filename,sep=';')
         fmt.add_PIQc_high_spikes_column(['PDM'], algo[0], param)
-
+        spiked_frame = pd.read_csv(out_filename+'_mean', sep=';')
+        spiked_frame = stats.add_high_spikes_col(spiked_frame, 'ch4', 'single', '') # add high spikes column
+        spiked_frame['Datetime']=pd.to_datetime(spiked_frame['Datetime'])
+        frame = frame_tdf[['Datetime','ICOS','GET_corr']]
+        frame = frame.merge(spiked_frame[['Datetime','spike_ch4','spike_ch4_PIQc','high_spike_ch4_PIQc']], on='Datetime', how='left')
+        ax[i].scatter( frame['ICOS'], frame['GET_corr'], c='black', s=2, label = 'all data')
+        # ax[i].scatter( frame[frame['spike_ch4_PIQc']]['ICOS'], frame[frame['spike_ch4_PIQc']]['GET_corr'], c='orange', s=2)
+        ax[i].scatter( frame[frame['spike_ch4']==False]['ICOS'], frame[ frame['spike_ch4']==False]['GET_corr'], c='orange', s=2, label = 'despiked data')
+        # ax[i].scatter( frame[frame['spike_ch4']==True]['ICOS'], frame[ frame['spike_ch4']==True]['GET_corr'], c='red', s=2)
+        
+        #ax[i].scatter(spiked_frame['ch4'], spiked_frame[spiked_frame['spike_ch4_PIQc']==True]['ch4'])
+        ax[i].grid()
+        ax[i].set_xlim(1800,2200)
+        ax[i].set_ylim(1800,2200)
+        ax[i].plot(np.arange(1800,2300,50),np.arange(1800,2300,50), ls='--', c='chartreuse' )
+        ax[i].set_title(str(algo[0])+' '+str(param))
+        # ax[i].set_aspect('equal')
+        i=i+1
+ax[2].legend()
+plt.savefig('scatter_el_yazidi.png', dpi=300)
+plt.show()
 # PLOT
 
 #fig = make_subplots(rows=1, cols=1)
