@@ -583,6 +583,7 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
             ID      = config.get(stat, 'inst_ID')
             for height in heights:
                 monthly_data, monthly_data_diff = sel.get_monthly_data(stat, ID, alg, params, spec, height, years)
+                print(monthly_data_diff)
                 monthly_data_diff_all_stat.append(monthly_data_diff)
                 if len(monthly_data_diff)<9:
                     print('pochi dati:', stat, height, alg)
@@ -590,7 +591,7 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
         # print(len(monthly_data_diff_all_stat),len(monthly_data_diff_all_stat[0]))
         y=[]
         print(indexes)
-
+        
         for l in indexes:   
             x=[]
             y_line = []
@@ -669,6 +670,149 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
                       )
     
     fig.write_image('./res_plot/monthly_mean_boxplots/monthly_mean_box_plotly_'+spec+log_suff+'.png')
+
+def plot_hourly_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
+    """
+    plot seasonal boxplots of monthly mean differences respect to non spiked data 
+    Parameters
+    ----------
+    stat, spec: str
+        details for stations names, instrument id, chemical specie from the ini file
+    algorithms: list of str
+        algorithms array defined in spikes.py
+    Returns
+    -------
+    None.
+
+    """
+    config=ConfigParser()
+    config.read('stations.ini')
+    if (spec == 'CO') |( spec =='CH4'):
+        xline = 2
+        if log:
+            maxim = np.log10(0.001) # ranges with log10 for plotly
+            minim = np.log10(30)
+        else:
+            maxim = 10 # ranges with log10 for plotly
+            minim = -30
+    else:
+        xline = 0.1
+        if log:
+            minim = np.log10(0.0001)
+            maxim = np.log10(10)
+        else:
+            maxim = 2
+            minim = -10
+    
+    
+    fig = make_subplots(rows=2, cols=1, horizontal_spacing = 0.0)
+    for i in range(len(algorithms)):
+            
+        alg = algorithms[i][0] # read current algorithm name (REBS or SD)
+        params = algorithms[i][1:len(algorithms[i])] # get list of parameters
+        indexes = get_indexes_for_monthly_boxplot(alg, params)
+        
+        hourly_data_diff_all_stat = [] # used to "store" the monthly tables of different stations ad sampling altitudes
+        for stat in stations:
+            heights = config.get(stat, 'height' ).split(',')
+            ID      = config.get(stat, 'inst_ID')
+            for height in heights:
+                hourly_data, hourly_data_diff = sel.get_hourly_data(stat, ID, alg, params, spec, height)
+                hourly_data_diff_all_stat.append(hourly_data_diff)
+                if len(hourly_data_diff)<9:
+                    print('pochi dati:', stat, height, alg)
+        
+        # set x and y arrays in for the plotly grouped boxplot
+        # print(len(monthly_data_diff_all_stat),len(monthly_data_diff_all_stat[0]))
+        y=[]
+        print(indexes)
+
+        for l in indexes:   
+            x=[]
+            y_line = []
+            j=0
+            for stat in stations: # define x and y for grouped boxplots
+                print(stat)
+                heights = config.get(stat, 'height' ).split(',')
+                x_line = []
+                for k in range(len(heights)):
+                    print(j,l)
+                    h=hourly_data_diff_all_stat[j][l]
+                    ###### replace zeros with nan ######
+                    h=np.array(h)
+                    h[h==0.] = np.nan
+                    h=h.tolist()
+                    ###### ##### ##### ##### ##### #####
+                    y_line = y_line + h                    
+                    x_line = x_line + [ stat[0:3]+'-'+config.get(stat, 'inst_ID')+' - '+ heights[k]+' m' for a in range(len(hourly_data_diff_all_stat[j][l])) ]
+                    j+=1
+                x = x + x_line
+            y.append(y_line)
+            
+        colors = [ ['goldenrod', 'gray', 'darkolivegreen',],
+                  ['goldenrod', 'gray', 'darkolivegreen',]]
+        # colors = [ ['#D4AA00', '#A0A0A0', '#90AE1B',],
+        #            ['#D4AA00', '#A0A0A0', '#90AE1B',]]
+        #y=-np.array(y)
+        print(len(x),len(y[0]),len(y[1]),len(y[2]))       
+        for k in range(len(params)):
+            fig.add_trace(go.Box(
+                y=y[k],
+                x=x,
+                name=alg + ' ' +params[k],
+                jitter=0.3,
+                pointpos=0,
+                boxpoints=False, # represent all points
+                marker_color = colors[i][k],
+                offsetgroup = alg + ' ' +params[k],
+                legendgroup=alg),                
+                row=i+1,col=1)
+       
+        fig.add_shape(type='line',
+              x0=-0.5,
+              y0=xline,
+              x1=len(stations)+8-.5,
+              y1=xline,
+              line=dict(color='#C31D1D', dash='dot'),
+              row=i+1,col=1)
+        
+        if not log:
+            fig.add_shape(type='line',
+                  x0=-0.5,
+                  y0=-xline,
+                  x1=len(stations)+8-.5,
+                  y1=-xline,
+                  line=dict(color='#C31D1D', dash='dot'),
+                  row=i+1,col=1)
+        
+        if log:
+            scale='log'
+            log_suff='_log'
+        else:
+            scale='linear'
+            log_suff=''
+        
+        fig.update_xaxes(showticklabels=False, 
+                         row=1, col=1)
+        fig.update_xaxes(tickangle=-45,
+                         tickfont=dict(size=20),
+                         row=2, col=1)
+        fig.update_yaxes(title_text='Δ'+spec+' '+fmt.get_meas_unit(spec), 
+                          type=scale,
+                          range=[minim, maxim],
+                          row=i+1,col=1)
+                         
+    fig.update_layout(boxmode='group', 
+                      font=dict(size=25), 
+                      width=1700, height=800,
+                      title_text= spec+' Concentration Difference',
+                      legend_tracegroupgap = 250,
+                      template = 'plotly+gridon',
+                      plot_bgcolor='#ededed'
+                      )
+    
+    fig.write_image('./res_plot/hourly_mean_boxplots/hourly_mean_box_plotly_'+spec+log_suff+'.png')
+
 
 def plot_sd_histo(data, stat,  id, alg, param, spec, heights):
     """
