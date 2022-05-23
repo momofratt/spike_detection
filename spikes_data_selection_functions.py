@@ -108,7 +108,7 @@ def get_hourly_frame(inframe, datetime_str, column_str):
             out_frame = df.resample('H').mean()
             return out_frame
 
-def get_monthly_data(stat, id, alg, params, spec, height,years):
+def get_monthly_data(stat, id, alg, params, spec, height, years):
     """
     read spiked data files and returns montly averaged frame for different parameters
 
@@ -291,6 +291,75 @@ def get_hourly_data(stat, id, alg, params, spec, height):
         hourly_data_diff_frame.to_csv('./res_hourly_tables/hourly_avg_table_diff_'+str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
 
     return hourly_data_spiked, hourly_data_diff
+
+
+def get_monthly_spike_frequency(stat, id, alg, params, spec, height, years):
+    """
+    read spiked data files and returns monthly spike frequency frame for different parameters
+
+     Parameters
+     ----------
+
+     stat, spec, id: str
+         details for station name, instrument id, chemical specie from the ini file
+     alg: str
+         current algorithm ('SD' or 'REBS')
+     params: list of str
+         list of parameter values
+     height: str
+          sampling height
+    Returns
+    -------
+    monthly data: 2D list of float
+        each list contains the montlhy mean values for the selected parameter
+        the last list is referred to no-spiked data
+    monthly_data_diff: 2D list of float
+        each list contains the montlhy mean difference between spiked and non-spiked data for the selected parameter
+        the mean monthly difference is computed by averaging the hourly differences of the whole month
+    """
+    
+    try: # if monthly tables alredy exist upload the existing tables, otherwise compute montly mean
+        monthly_freq_frame = pd.read_csv('./res_monthly_tables/monthly_freq_table_'     +str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ', index_col=0) 
+        monthly_freq_frame.reset_index(drop=True, inplace=True) #remove first column
+        monthly_freq = monthly_freq_frame.values.tolist()
+        #print('using existing data')  
+    except:
+
+        monthly_freq = []
+        
+        for param in params: # loop over parameter values
+
+            in_filename = './data-minute-spiked/' + stat[0:3]+'/' + fmt.get_L1_file_name(stat[0:3], height, spec, id) +'_'+alg+'_'+param+ '_spiked'
+            data = pd.read_csv(in_filename, sep=';', parse_dates=['Datetime'] )  # read dataframe with spiked data
+
+            monthly_freq_line = []
+            for year in years:
+                for month in range(1,13):
+                    # evaluate number of data and number of spikes for each month
+                    ndata = len(data[(data['Datetime'].dt.year == year) &
+                                          (data['Datetime'].dt.month == month)][spec.lower()])
+    
+                    nspikes= len(data[(data['Datetime'].dt.year == year) &
+                                          (data['Datetime'].dt.month == month) &
+                                          (data['spike_'+spec.lower()]==True)][spec.lower()]) #read spiked data
+    
+                    if ndata > 0:
+                        freq = nspikes/ndata
+                    else:
+                        freq = np.nan
+                        
+                    monthly_freq_line.append( round(freq,3))
+                    
+            monthly_freq.append(monthly_freq_line)
+        
+
+        monthly_data_frame=pd.DataFrame(monthly_freq)
+        monthly_data_frame.columns = [str(a)+'-2019' for a in range(1,13)] + [str(b)+'-2020' for b in range(1,13)]
+        monthly_data_frame.index =[alg+str(par) for par in params] 
+        monthly_data_frame.to_csv('./res_monthly_tables/monthly_freq_table_'          +str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
+    
+    return monthly_freq
+
 
 def get_daily_season_data(stat, id, alg, params, spec, height,season,season_str):
     ## NB this function should be implemented with a try-except statement as for the get_monthly_data() function.
