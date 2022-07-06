@@ -74,7 +74,7 @@ for stat in stations:
                 print('\nplot for ', alg, param)
                 for spec in species:
                     inst_frame = [] # list of dataframe with instrument data
-                    # inst_frame_PIQc = [] # list of dataframe with instrument data after PIQc
+                    inst_frame_PIQc = [] # list of dataframe with instrument data after PIQc
                     for h in heights:
                         in_filename = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, h, spec, id) +'_'+alg+'_'+param+ '_spiked'
                         inst_frame.append( pd.read_csv(in_filename, sep=';', parse_dates=['Datetime'] ) ) # read dataframe with spiked data
@@ -85,8 +85,7 @@ for stat in stations:
                     #### #### Q-Qplot #### ####
                     print('processing qqplot')
                     splt.plot_sd_qqplot(inst_frame, stat, id, alg, param, spec, heights)
-
-                    # #### plot events timeseries #### ####
+                    # # #### plot events timeseries #### ####
                     for ev in events:
                         print('processing event', ev[0])
                         splt.plot_sd_event(inst_frame, stat, id, alg, param, spec, heights, ev)
@@ -116,18 +115,42 @@ for stat in stations:
         
             
         ### #### manual flag analysis #### #### 
-        ## for spec in species:
-        ##     for h in heights:
-        ##         #print('\n\n******** manual flag analysis high spikes ***********', id, spec, h)
-        ##         #stats.plot_BFOR_parameters(stat, id, algorithms, spec, h, high_spikes=True, high_spikes_mode='single',quant=None)
-        ##         print('\n\n******** manual flag analysis all spikes ***********', id, spec, h)
-        ##         stats.plot_BFOR_parameters_sdrebs(stat, id, algorithms, spec, h, high_spikes=False, high_spikes_mode='single',quant=None)
-        ##         stats.plot_BFOR_parameters_sdrebs(stat, id, algorithms, spec, h, high_spikes=True, high_spikes_mode='single',quant=None)
-        ##         stats.plot_BFOR_parameters_lowhigh(stat, id, algorithms, spec, h, high_spikes_mode='single',quant=None)
+        for spec in species:
+            for h in heights:
+                print('\n\n******** manual flag analysis high spikes ***********', id, spec, h)
+                stats.plot_BFOR_parameters(stat, id, algorithms, spec, h, high_spikes=True, high_spikes_mode='single',quant=None)
+                print('\n\n******** manual flag analysis all spikes ***********', id, spec, h)
+                stats.plot_BFOR_parameters_sdrebs(stat, id, algorithms, spec, h, high_spikes=False, high_spikes_mode='single',quant=None)
+                stats.plot_BFOR_parameters_sdrebs(stat, id, algorithms, spec, h, high_spikes=True, high_spikes_mode='single',quant=None)
+                stats.plot_BFOR_parameters_lowhigh(stat, id, algorithms, spec, h, high_spikes_mode='single',quant=None)
         
 
 stats.BFOR_table(stations, algorithms, high_spikes=False, high_spikes_mode='single', quant=None)
 
+# ciclo per calcolare le tabelle con medie mensili/orarie dalle quali vengono calcolati i boxplot
+for spec in  ['CO2','CH4','CO']:
+    stations = ['CMN','JFJ','UTO','IPR','JUS','KIT','PUI','SAC_329','SAC']
+
+    if spec == 'CO':
+        ## ATTENZIONE!!! se vuoi analizzare CO rimuovi 'KIT_CO' dalla lista di stazioni!!
+        stations = list(map(lambda x: x.replace('KIT', 'KIT_CO'), stations)) # replace KIT with KIT_CO
+        try:
+            stations.remove('PUI')
+        except:
+            print('')
+            
+    algorithms = [['SD', '0.1', '0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0'],
+                  ['REBS', '1', '2', '3', '4', '5', '6', '7', '8', '9','10']]
+    for stat in stations:
+        for algo in algorithms:
+            alg    = algo[0]
+            params = algo [1:len(algo)]
+            config.read('stations.ini') 
+            heights = config.get(stat, 'height' ).split(',')
+            ID      = config.get(stat, 'inst_ID')
+            for height in heights:
+                hourly_data, hourly_data_diff = sel.get_hourly_data(stat, ID, alg, params, spec, height)
+                monthly_data, monthly_data_diff = sel.get_monthly_data(stat, ID, alg, params, spec, height)
 
 ### boxplot of monthly differences #####
 for spec in ['CH4','CO2','CO']:
@@ -141,18 +164,17 @@ for spec in ['CH4','CO2','CO']:
         stations.remove('PUI')
         algorithms = [['SD', '0.1', '3.0', '4.0'],
                         ['REBS', '1', '8','10']]
-    for stat in stations:
-        config.read('stations.ini') 
-        heights = config.get(stat, 'height' ).split(',')
-        IDs.append(config.get(stat, 'inst_ID' ))
+
     print('\n',spec)
-    splt.plot_season_boxplot_plotly(stations, IDs, algorithms, spec, years, False)
-    splt.plot_season_boxplot_plotly(stations, IDs, algorithms, spec, max_heights, years, True)
+    splt.plot_season_boxplot_plotly(stations, algorithms, spec, years, False)
+    splt.plot_season_boxplot_plotly(stations, IDs, algorithms, spec, years, True)
+    for stat in stations:
+       config.read('stations.ini') 
+       IDs.append(config.get(stat, 'inst_ID' ))
     splt.plot_season_boxplot(stations, IDs, algorithms, spec, max_heights, years, '')
 
-
 #### boxplot of hourly differences #####
-for spec in ['CH4','CO']:
+for spec in ['CO2','CH4','CO']:
     max_heights=[]
     IDs = []
     algorithms = [['SD', '0.1', '1.0', '3.0'],
@@ -168,12 +190,9 @@ for spec in ['CH4','CO']:
                         ['REBS', '1', '8','10']]
     for stat in stations:
         config.read('stations.ini') 
-        heights = config.get(stat, 'height' ).split(',')
         IDs.append(config.get(stat, 'inst_ID' ))
     print('\n',spec)
-    splt.plot_hourly_boxplot_plotly(stations, IDs, algorithms, spec, years, False)
-    splt.plot_season_boxplot_plotly(stations, IDs, algorithms, spec, max_heights, years, True)
-    splt.plot_season_boxplot(stations, IDs, algorithms, spec, max_heights, years, '')
+    splt.plot_hourly_boxplot_plotly(stations, IDs, algorithms, spec, years)
 
 
 ################################################
@@ -196,9 +215,9 @@ for stat in stations:
        for spec in species:
            inst_frame_PIQc = [] # list of dataframe with instrument data after PIQc
            for h in heights:
-               in_filename = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, h, spec, id) +'_'+alg+'_'+param+ '_spiked_PIQc_mean'
-               inst_frame_PIQc.append( pd.read_csv(in_filename, sep=';', parse_dates=['Datetime'] ) ) # read dataframe with spiked data after PIQc
-           # #### plot events timeseries #### ####
+              in_filename = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, h, spec, id) +'_'+alg+'_'+param+ '_spiked_PIQc_mean'
+              inst_frame_PIQc.append( pd.read_csv(in_filename, sep=';', parse_dates=['Datetime'] ) ) # read dataframe with spiked data after PIQc
+            #### plot events timeseries #### ####
            for ev in events:
                print('processing event', ev[0])
                splt.plot_conc_event_PIQc_plotly(inst_frame_PIQc, stat, id, alg, param, spec, heights, ev, mode='single',quant=0.)

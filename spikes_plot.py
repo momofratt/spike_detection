@@ -34,7 +34,7 @@ def get_indexes_for_monthly_boxplot(alg, params):
     """ get index for a given algorithm and parameter"""
     
     all_algorithms = [['SD', '0.1', '0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0'],
-                      ['REBS', '1', '2', '3', '4', '5', '6', '7', '8', '9','10']]
+                      ['REBS', '1', '2', '3', '4', '5', '6', '7','8' , '9', '10']]
     indexes=[]
     for algo in all_algorithms:
         if algo[0]!=alg:
@@ -536,7 +536,7 @@ def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
     
     
     
-def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
+def plot_season_boxplot_plotly(stations, algorithms, spec, years, log):
     """
     plot seasonal boxplots of monthly mean differences respect to non spiked data 
     Parameters
@@ -552,7 +552,7 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
     """
     config=ConfigParser()
     config.read('stations.ini')
-    if (spec == 'CO') |( spec =='CH4'):
+    if (spec == 'CO') |( spec =='CH4'): # define ranges and value for the horizontal line that reports the WMO compatibility goal (2 ppb or 0.1 ppm)
         xline = 2
         if log:
             maxim = np.log10(0.001) # ranges with log10 for plotly
@@ -575,18 +575,18 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
             
         alg = algorithms[i][0] # read current algorithm name (REBS or SD)
         params = algorithms[i][1:len(algorithms[i])] # get list of parameters
-        indexes = get_indexes_for_monthly_boxplot(alg, params)
+        indexes = get_indexes_for_monthly_boxplot(alg, params) # get the indexes corresponding to the used parameters
         
-        monthly_data_diff_all_stat = [] # used to "store" the monthly tables of different stations ad sampling altitudes
+        monthly_data_diff_all_stat = [] # used to "store" the monthly tables of different stations and sampling altitudes
         for stat in stations:
             heights = config.get(stat, 'height' ).split(',')
             ID      = config.get(stat, 'inst_ID')
             for height in heights:
                 monthly_data, monthly_data_diff = sel.get_monthly_data(stat, ID, alg, params, spec, height, years)
-                print(monthly_data_diff)
+                #print(monthly_data_diff)
                 monthly_data_diff_all_stat.append(monthly_data_diff)
                 if len(monthly_data_diff)<9:
-                    print('pochi dati:', stat, height, alg)
+                    print('ERRORE numero di linee inferiore al numero di parametri:', stat, height, alg)
         # set x and y arrays in for the plotly grouped boxplot
         # print(len(monthly_data_diff_all_stat),len(monthly_data_diff_all_stat[0]))
         y=[]
@@ -671,7 +671,7 @@ def plot_season_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
     
     fig.write_image('./res_plot/monthly_mean_boxplots/monthly_mean_box_plotly_'+spec+log_suff+'.png')
 
-def plot_hourly_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
+def plot_hourly_boxplot_plotly(stations, IDs, algorithms, spec, years):
     """
     plot seasonal boxplots of monthly mean differences respect to non spiked data 
     Parameters
@@ -687,22 +687,18 @@ def plot_hourly_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
     """
     config=ConfigParser()
     config.read('stations.ini')
-    if (spec == 'CO') |( spec =='CH4'):
+    if spec =='CH4':
         xline = 2
-        if log:
-            maxim = np.log10(0.001) # ranges with log10 for plotly
-            minim = np.log10(30)
-        else:
-            maxim = 10 # ranges with log10 for plotly
-            minim = -30
+        maxim = 4 # ranges with log10 for plotly
+        minim = -40
+    elif spec =='CO':
+        xline = 2
+        maxim = 5 # ranges with log10 for plotly
+        minim = -20
     else:
         xline = 0.1
-        if log:
-            minim = np.log10(0.0001)
-            maxim = np.log10(10)
-        else:
-            maxim = 2
-            minim = -10
+        maxim = 2
+        minim = -5
     
     
     fig = make_subplots(rows=2, cols=1, horizontal_spacing = 0.0)
@@ -720,14 +716,27 @@ def plot_hourly_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
                 hourly_data, hourly_data_diff = sel.get_hourly_data(stat, ID, alg, params, spec, height)
                 hourly_data_diff_all_stat.append(hourly_data_diff)
                 if len(hourly_data_diff)<9:
-                    print('pochi dati:', stat, height, alg)
-        
+                    print('ERRORE numero di linee inferiore al numero di parametri:', stat, height, alg)
         # set x and y arrays in for the plotly grouped boxplot
         # print(len(monthly_data_diff_all_stat),len(monthly_data_diff_all_stat[0]))
         y=[]
         print(indexes)
 
-        for l in indexes:   
+        for l in indexes:
+            """
+            crea liste per fare il boxplot raggruppto per stazioni.
+            Due liste: y con n colonne e m=len(indexes) righe
+                       x con n colonne
+            x contiene i label per raggruppare i boxplot (ogni label è definito come stat-ID-height)
+            y contiene una riga per ogni parametro da plottare (ad esempio 3 righe se si plottano REBS 1,3,8). 
+              Per ogni riga sono riportate le medie orarie relative al parametro (es REBS 1). 
+              Per ogni riga sono presenti le medie orarie di tutte le stazioni poste una di seguito all'altra.
+              Ad ogni elemento della riga y è associato un label della lista x (len(x)==len(y[k]))
+              es: x=['CMN-590 - 8 m', 'CMN-590 - 8 m', 'CMN-590 - 8 m', 'IPR-629 100 m', 'IPR-629 100 m']
+                  y[0]=[-1.1,-2.2,-3.3,-4.4,-5.5]
+                  y[1]=[-0.1,-1.2,-2.3,-3.4,-4.5]
+              sia in y[0] che in y[1] le prime tre misure sono associate a 'CMN-590 - 8 m', mentre le ultime due a 'IPR-629 100 m'
+            """
             x=[]
             y_line = []
             j=0
@@ -736,11 +745,12 @@ def plot_hourly_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
                 heights = config.get(stat, 'height' ).split(',')
                 x_line = []
                 for k in range(len(heights)):
-                    print(j,l)
+                    print('j,l =', j,l)
+                    print('nlines =',len(hourly_data_diff_all_stat[j]))
                     h=hourly_data_diff_all_stat[j][l]
                     ###### replace zeros with nan ######
                     h=np.array(h)
-                    h[h==0.] = np.nan
+                    #h[h==0.] = np.nan
                     h=h.tolist()
                     ###### ##### ##### ##### ##### #####
                     y_line = y_line + h                    
@@ -751,9 +761,7 @@ def plot_hourly_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
             
         colors = [ ['goldenrod', 'gray', 'darkolivegreen',],
                   ['goldenrod', 'gray', 'darkolivegreen',]]
-        # colors = [ ['#D4AA00', '#A0A0A0', '#90AE1B',],
-        #            ['#D4AA00', '#A0A0A0', '#90AE1B',]]
-        #y=-np.array(y)
+
         print(len(x),len(y[0]),len(y[1]),len(y[2]))       
         for k in range(len(params)):
             fig.add_trace(go.Box(
@@ -776,21 +784,14 @@ def plot_hourly_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
               line=dict(color='#C31D1D', dash='dot'),
               row=i+1,col=1)
         
-        if not log:
-            fig.add_shape(type='line',
-                  x0=-0.5,
-                  y0=-xline,
-                  x1=len(stations)+8-.5,
-                  y1=-xline,
-                  line=dict(color='#C31D1D', dash='dot'),
-                  row=i+1,col=1)
-        
-        if log:
-            scale='log'
-            log_suff='_log'
-        else:
-            scale='linear'
-            log_suff=''
+
+        fig.add_shape(type='line',
+              x0=-0.5,
+              y0=-xline,
+              x1=len(stations)+8-.5,
+              y1=-xline,
+              line=dict(color='#C31D1D', dash='dot'),
+              row=i+1,col=1)
         
         fig.update_xaxes(showticklabels=False, 
                          row=1, col=1)
@@ -798,7 +799,6 @@ def plot_hourly_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
                          tickfont=dict(size=20),
                          row=2, col=1)
         fig.update_yaxes(title_text='Δ'+spec+' '+fmt.get_meas_unit(spec), 
-                          type=scale,
                           range=[minim, maxim],
                           row=i+1,col=1)
                          
@@ -811,7 +811,7 @@ def plot_hourly_boxplot_plotly(stations, IDs, algorithms, spec, years, log):
                       plot_bgcolor='#ededed'
                       )
     
-    fig.write_image('./res_plot/hourly_mean_boxplots/hourly_mean_box_plotly_'+spec+log_suff+'.png')
+    fig.write_image('./res_plot/hourly_mean_boxplots/hourly_mean_box_plotly_'+spec+'.png')
 
 
 def plot_sd_histo(data, stat,  id, alg, param, spec, heights):

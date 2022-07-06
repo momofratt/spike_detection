@@ -102,11 +102,20 @@ def add_spike_cols_PIQc(df, specie):
 
 
 def get_hourly_frame(inframe, datetime_str, column_str):
-            df = inframe.copy()
-            df.index = df[datetime_str]
-            del df[datetime_str]
-            out_frame = df.resample('H').mean()
-            return out_frame
+    df = inframe.copy()
+    df.index = df[datetime_str]
+    del df[datetime_str]
+    out_frame = df.resample('H').mean()
+    return out_frame
+
+
+def get_daily_frame(inframe, datetime_str, column_str):
+    df = inframe.copy()
+    df.index = df[datetime_str]
+    del df[datetime_str]
+    out_frame = df.resample('H').mean().resample('d').mean()
+    return out_frame
+
 
 def get_monthly_data(stat, id, alg, params, spec, height, years):
     """
@@ -139,7 +148,7 @@ def get_monthly_data(stat, id, alg, params, spec, height, years):
         monthly_data_spiked_frame.reset_index(drop=True, inplace=True) #remove first column
         monthly_data_diff_frame.reset_index(drop=True, inplace=True)
         monthly_data_spiked, monthly_data_diff = monthly_data_spiked_frame.values.tolist(), monthly_data_diff_frame.values.tolist()
-        #print('using existing data')  
+        print('using existing data')  
     except:
 
         monthly_data = []
@@ -175,14 +184,8 @@ def get_monthly_data(stat, id, alg, params, spec, height, years):
             monthly_data_diff.append(  month_diff)
     
         monthly_data_spiked.append(month_avg) # append last list with no spiked data (no selection on data['spike_'+spec.lower()]==False performed)
-    
-        #month_avg = []
-        #for year in years:
-        #   for month in range(1,13): # append last list with no spiked data (no selection on data['spike_'+spec.lower()]==False performed)
-        #        month_avg.append(data[(data['Datetime'].dt.year == year) &
-        #                              (data['Datetime'].dt.month == month)][spec.lower()].mean())
-    
-    
+        
+        # write results to frame
         monthly_data_frame=pd.DataFrame(monthly_data_spiked)
         monthly_data_frame.columns = [str(a)+'-2019' for a in range(1,13)] + [str(b)+'-2020' for b in range(1,13)]
         monthly_data_frame.index =[alg+str(par) for par in params] + ['non-spiked']
@@ -224,7 +227,7 @@ def get_hourly_data(stat, id, alg, params, spec, height):
         hourly_data_spiked_frame.reset_index(drop=True, inplace=True) #remove first column
         hourly_data_diff_frame.reset_index(drop=True, inplace=True)
         hourly_data_spiked, hourly_data_diff = hourly_data_spiked_frame.values.tolist(), hourly_data_diff_frame.values.tolist()
-        print('using existing data')  
+        print('using existing data at ', stat, id, alg, spec, height)  
         
     except:
 
@@ -236,45 +239,21 @@ def get_hourly_data(stat, id, alg, params, spec, height):
             in_filename = './data-minute-spiked/' + stat[0:3]+'/' + fmt.get_L1_file_name(stat[0:3], height, spec, id) +'_'+alg+'_'+param+ '_spiked'
             data = pd.read_csv(in_filename, sep=';', parse_dates=['Datetime'] )  # read dataframe with spiked data
             
-    
-            
-            hour_frame_hourly        = get_hourly_frame(data,'Datetime',spec.lower()) # evaluate hourly mean
+            hour_frame_hourly        = get_hourly_frame(data                                    , 'Datetime',spec.lower()) # evaluate hourly mean
             hour_frame_hourly_spiked = get_hourly_frame(data[data['spike_'+spec.lower()]==False], 'Datetime',spec.lower()) # evaluate hourly mean
             
-
             hour_frame_hourly        = hour_frame_hourly[[spec.lower()]]
             hour_frame_hourly_spiked = hour_frame_hourly_spiked[[spec.lower()]]
             
-
-            hour_frame_hourly_diff   = hour_frame_hourly_spiked[[spec.lower()]] - hour_frame_hourly[[spec.lower()]]
+            all_frame = hour_frame_hourly.merge(hour_frame_hourly_spiked, how='inner', left_index=True, right_index=True)
+            
+            hour_frame_hourly_diff = all_frame[spec.lower()+'_y'] - all_frame[spec.lower()+'_x'] # merge the two frame and compute differences between hours
     
             hour_avg        = hour_frame_hourly[spec.lower()].values.tolist()
             hour_avg_spiked = hour_frame_hourly_spiked[spec.lower()].values.tolist()
-            hour_diff       = hour_frame_hourly_diff[spec.lower()].values.tolist()                 
+            hour_diff       = hour_frame_hourly_diff.values.tolist()                 
 
 
-            # hour_avg = []
-            # hour_avg_spiked = []
-            # hour_diff = []
-            # start_time = dt.datetime(2019,1,1,0,0,0)
-            # for hour in range(0, 700*24):
-            #         time = start_time+dt.timedelta(hours=hour)
-                    
-            #         # evaluate hourly mean difference between spiked and non-spiked data
-            #         hour_frame = data[(data['Datetime'] == time)]
-            #         hour_frame_hourly = get_hourly_frame(hour_frame,'Datetime',spec.lower()) # evaluate hourly mean
-    
-            #         hour_frame_spiked = data[(data['Datetime'] == time) &
-            #                               (data['spike_'+spec.lower()]==False)][['Datetime', spec.lower()]] #read spiked data
-            #         hour_frame_hourly_spiked = get_hourly_frame(hour_frame_spiked, 'Datetime',spec.lower()) # evaluate hourly mean
-    
-            #         hour_frame_hourly_diff = hour_frame_hourly_spiked[spec.lower()] - hour_frame_hourly[spec.lower()]
-    
-            #         hour_avg.append(       round(hour_frame_hourly[spec.lower()].mean(),4))
-            #         hour_avg_spiked.append(round(hour_frame_hourly_spiked[spec.lower()].mean(),4))
-            #         hour_diff.append(      round(hour_frame_hourly_diff.mean(),4))
-    
-            #hourly_data.append(       hour_avg)
             hourly_data_spiked.append(hour_avg_spiked)
             hourly_data_diff.append(  hour_diff)
     
