@@ -12,6 +12,7 @@ import datetime
 import datetime as dt 
 from configparser import ConfigParser
 import numpy as np
+import spikes_plot as splt
 
 def select_year(df, year):
     """ select one year of data
@@ -272,7 +273,7 @@ def get_hourly_data(stat, id, alg, params, spec, height):
     return hourly_data_spiked, hourly_data_diff
 
 
-def get_monthly_spike_frequency(stat, id, alg, params, spec, height, years):
+def get_monthly_spike_frequency(stat, id, alg, params, spec, height, years, get_single_par_freq=False):
     """
     read spiked data files and returns monthly spike frequency frame for different parameters
 
@@ -287,6 +288,9 @@ def get_monthly_spike_frequency(stat, id, alg, params, spec, height, years):
          list of parameter values
      height: str
           sampling height
+     get_single_par_freq: bool
+          choose wether to return only the output for the given params or to run all the analysis and write results on file. +
+          If ==True, then the function does not write results on files and provides only the list of frequencies for the input params.
     Returns
     -------
     monthly data: 2D list of float
@@ -331,12 +335,17 @@ def get_monthly_spike_frequency(stat, id, alg, params, spec, height, years):
                     
             monthly_freq.append(monthly_freq_line)
         
-
         monthly_data_frame=pd.DataFrame(monthly_freq)
         monthly_data_frame.columns = [str(a)+'-2019' for a in range(1,13)] + [str(b)+'-2020' for b in range(1,13)]
         monthly_data_frame.index =[alg+str(par) for par in params] 
         monthly_data_frame.to_csv('./res_monthly_tables/monthly_freq_table_'          +str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
     
+    if get_single_par_freq: # skip to except if get_single_par_freq == True
+        temp_monthly_freq=[]    
+        indexes = splt.get_indexes_for_monthly_boxplot(alg, params)
+        for i in indexes:   
+            temp_monthly_freq.append(monthly_freq[i])
+        monthly_freq = temp_monthly_freq 
     return monthly_freq
 
 
@@ -453,7 +462,31 @@ def write_heatmap_table(stations, years, algo, spec):
             df.to_csv('./heatmap_tables/heatmap_table_'+str(alg)+'_'+str(par)+'_'+str(spec)+'.csv', sep = ' ')
 
 
-
+def write_heatmap_table_freq(stations, years, algo, spec):
+        config=ConfigParser()
+        alg = algo[0] # algorithm name
+        parameters = algo[1:len(algo)]
+        for par in parameters:
+            print(alg, par)
+            df = pd.DataFrame()
+            indexes=[]
+            for stat in stations:
+                if (stat=='KIT') & (spec=='CO'):
+                    stat='KIT_CO'
+                if (stat=='PUI') & (spec=='CO'):
+                    continue
+                config.read('stations.ini') 
+                heights = config.get(stat, 'height' ).split(',')
+                species = config.get(stat, 'species').split(',')
+                ID      = config.get(stat, 'inst_ID').split(',')
+                stat = stat[0:3]
+                height = heights[-1] # get higher altitude
+                    
+                df_stat = pd.DataFrame(get_monthly_spike_frequency(stat, ID[0], alg, [par], spec, height, years, get_single_par_freq=True))
+                indexes.append(stat+'-'+ID[0])
+                df = pd.concat([df, df_stat])
+            df.set_index(pd.Index(indexes), inplace=True)
+            df.to_csv('./heatmap_tables/heatmap_table_freq_'+str(alg)+'_'+str(par)+'_'+str(spec)+'.csv', sep = ' ')
 
 
 

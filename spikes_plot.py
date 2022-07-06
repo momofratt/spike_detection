@@ -8,6 +8,7 @@ Created on Tue Oct 26 12:02:42 2021
 import matplotlib.pyplot as plt 
 import matplotlib.ticker as mtick
 import matplotlib.patches as mpatches
+import matplotlib
 
 import spikes_formatting_functions as fmt
 import spikes_data_selection_functions as sel
@@ -1360,16 +1361,57 @@ def plot_heatmap_monthly_diff(algo_names, algos, species):
     plt.savefig('./heatmap_plot/heatmap_'+str(algo_names[j])+'_'+str(algos[j])+'.pdf')
     
     
+
+
+def plot_heatmap_frequencies(algo, param, species):
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    labels = ['','Feb\n\'19','','Apr\n\'19','','Jun\n\'19','','Aug\n\'19','','Oct\n\'19','','Dec\n\'19','','Feb\n\'20','','Apr\n\'20','','Jun\n\'20','','Aug\n\'20','','Oct\n\'20','','Dec\n\'20']
+
+    for i in range(3):
+        fig, ax = plt.subplots(1,2, figsize=(8,4), gridspec_kw={'width_ratios': [10, 1]})
+        fig.suptitle(species[i] + ' - '+algo+' '+param)
+        data =pd.read_csv('./heatmap_tables/heatmap_table_freq_'+str(algo)+'_'+str(param)+'_'+str(species[i])+'.csv', sep = ' ',index_col=0)
+        cmap, bins, ncolors = cmap_discretize(plt.cm.Blues,8)
+        sea.heatmap(data, ax = ax[0], cbar=False, vmin = 0, vmax=1, cmap=cmap, xticklabels=labels)
+        
+        norm = matplotlib.colors.BoundaryNorm(boundaries=bins, ncolors=ncolors-1 )
+        cb=matplotlib.colorbar.ColorbarBase(ax[1], 
+                                cmap=cmap,
+                                boundaries=  bins ,
+                                extend='both',
+                                ticks=bins,
+                                spacing='uniform',
+                                drawedges=False)
+        cb.ax.set_yticklabels([str(int(b*100))+'%' for b in bins])
+        plt.tight_layout()
+        plt.savefig('./heatmap_plot/heatmap_'+species[i]+'_'+str(algo)+'_'+str(param)+'.pdf')
+        plt.close()
+
+
+def cmap_discretize(cmap, N):
+    """Return a discrete colormap from the continuous colormap cmap.
+
+        cmap: colormap instance, eg. cm.jet. 
+        N: number of colors.
+
+    Example
+        x = resize(arange(100), (5,100))
+        djet = cmap_discretize(cm.jet, 5)
+        imshow(x, cmap=djet)
+    """
+
+    if type(cmap) == str:
+        cmap = plt.get_cmap(cmap)
+    colors_i = np.concatenate((np.linspace(0, 1., N), (0.,0.,0.,0.)))
+    colors_rgba = cmap(colors_i)
+    indices = np.linspace(0, 1., N+1)
+    indices = np.array([0, 0.01, 0.05, 0.10, 0.20, 0.40, 0.60, 0.80, 1])
+    cdict = {}
+    for ki,key in enumerate(('red','green','blue')):
+        cdict[key] = [ (indices[i], colors_rgba[i-1,ki], colors_rgba[i,ki]) for i in range(N+1) ]
+    # Return colormap object.
+    return matplotlib.colors.LinearSegmentedColormap(cmap.name + "_%d"%N, cdict, 1024), indices.tolist(), len(indices)
+
     
     
     
