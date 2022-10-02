@@ -1368,12 +1368,21 @@ def plot_heatmap_frequencies(algo, param, species):
     labels = ['','Feb\n\'19','','Apr\n\'19','','Jun\n\'19','','Aug\n\'19','','Oct\n\'19','','Dec\n\'19','','Feb\n\'20','','Apr\n\'20','','Jun\n\'20','','Aug\n\'20','','Oct\n\'20','','Dec\n\'20']
 
     for i in range(3):
-        fig, ax = plt.subplots(1,2, figsize=(8,4), gridspec_kw={'width_ratios': [10, 1]})
+        fig, ax = plt.subplots(1,2, figsize=(8,4), gridspec_kw={'width_ratios': [10, 1]}) # create two subplots, one for the heatmap and the other for the custom colorbar
         fig.suptitle(species[i] + ' - '+algo+' '+param)
+       
         data =pd.read_csv('./heatmap_tables/heatmap_table_freq_'+str(algo)+'_'+str(param)+'_'+str(species[i])+'.csv', sep = ' ',index_col=0)
-        cmap, bins, ncolors = cmap_discretize(plt.cm.Blues,8)
-        sea.heatmap(data, ax = ax[0], cbar=False, vmin = 0, vmax=1, cmap=cmap, xticklabels=labels)
+        cmap, bins, ncolors = cmap_discretize(plt.cm.viridis,8)
+        sea.heatmap(data, ax = ax[0], 
+                    cbar=False, 
+                    vmin = 0, vmax=100, 
+                    cmap=cmap, 
+                    xticklabels=labels,
+                    linewidths=0.01,
+                    linecolor='black',
+                    annot=True, fmt=".1f", annot_kws={'fontsize':5})
         
+        # define and plot custom colorbar
         norm = matplotlib.colors.BoundaryNorm(boundaries=bins, ncolors=ncolors-1 )
         cb=matplotlib.colorbar.ColorbarBase(ax[1], 
                                 cmap=cmap,
@@ -1382,7 +1391,18 @@ def plot_heatmap_frequencies(algo, param, species):
                                 ticks=bins,
                                 spacing='uniform',
                                 drawedges=False)
-        cb.ax.set_yticklabels([str(int(b*100))+'%' for b in bins])
+        cb.ax.set_yticklabels([str(int(100*b))+'%' for b in bins])
+  
+        # draw bold hlines to separate different instruments
+        indexes=data.index.to_list()
+        hlines_indexes=[]
+        for j in range(1, len(indexes)):
+            if indexes[j][0:7]!=indexes[j-1][0:7]: # if the jth instrument is different from the j-1th store the line number in the hlines_indexes list
+                hlines_indexes.append(j)
+        ax[0].hlines(hlines_indexes, *ax[0].get_xlim(), colors='white') # draw hlines
+        
+        # format and save figure
+        sea.set_style("dark")
         plt.tight_layout()
         plt.savefig('./heatmap_plot/heatmap_'+species[i]+'_'+str(algo)+'_'+str(param)+'.pdf')
         plt.close()

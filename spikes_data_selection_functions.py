@@ -340,7 +340,7 @@ def get_monthly_spike_frequency(stat, id, alg, params, spec, height, years, get_
         monthly_data_frame.index =[alg+str(par) for par in params] 
         monthly_data_frame.to_csv('./res_monthly_tables/monthly_freq_table_'          +str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
     
-    if get_single_par_freq: # skip to except if get_single_par_freq == True
+    if get_single_par_freq:
         temp_monthly_freq=[]    
         indexes = splt.get_indexes_for_monthly_boxplot(alg, params)
         for i in indexes:   
@@ -480,11 +480,11 @@ def write_heatmap_table_freq(stations, years, algo, spec):
                 species = config.get(stat, 'species').split(',')
                 ID      = config.get(stat, 'inst_ID').split(',')
                 stat = stat[0:3]
-                height = heights[-1] # get higher altitude
-                    
-                df_stat = pd.DataFrame(get_monthly_spike_frequency(stat, ID[0], alg, [par], spec, height, years, get_single_par_freq=True))
-                indexes.append(stat+'-'+ID[0])
-                df = pd.concat([df, df_stat])
+                #height = heights[-1] # get higher altitude
+                for height in heights:
+                    df_stat = pd.DataFrame(get_monthly_spike_frequency(stat, ID[0], alg, [par], spec, height, years, get_single_par_freq=True))
+                    indexes.append(stat+'-'+ID[0]+' - '+height.split('.')[0]+ 'm')
+                    df = pd.concat([df, df_stat])
             df.set_index(pd.Index(indexes), inplace=True)
             df.to_csv('./heatmap_tables/heatmap_table_freq_'+str(alg)+'_'+str(par)+'_'+str(spec)+'.csv', sep = ' ')
 
