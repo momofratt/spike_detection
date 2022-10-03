@@ -1373,6 +1373,50 @@ def plot_heatmap_frequencies(algo, param, species):
        
         data =pd.read_csv('./heatmap_tables/heatmap_table_freq_'+str(algo)+'_'+str(param)+'_'+str(species[i])+'.csv', sep = ' ',index_col=0)
         cmap, bins, ncolors = cmap_discretize(plt.cm.viridis,8)
+        sea.heatmap(100*data, ax = ax[0], 
+                    cbar=False, 
+                    vmin = 0, vmax=100, 
+                    cmap=cmap, 
+                    xticklabels=labels,
+                    linewidths=0.01,
+                    linecolor='black',
+                    annot=True, fmt=".1f", annot_kws={'fontsize':5})
+        
+        # define and plot custom colorbar
+        norm = matplotlib.colors.BoundaryNorm(boundaries=bins, ncolors=ncolors-1 )
+        cb=matplotlib.colorbar.ColorbarBase(ax[1], 
+                                cmap=cmap,
+                                boundaries=  bins ,
+                                extend='both',
+                                ticks=bins,
+                                spacing='uniform',
+                                drawedges=False)
+        cb.ax.set_yticklabels([str(int(100*b))+'%' for b in bins[1:-1]])
+  
+        # draw bold hlines to separate different instruments
+        indexes=data.index.to_list()
+        hlines_indexes=[]
+        for j in range(1, len(indexes)):
+            if indexes[j][0:7]!=indexes[j-1][0:7]: # if the jth instrument is different from the j-1th store the line number in the hlines_indexes list
+                hlines_indexes.append(j)
+        ax[0].hlines(hlines_indexes, *ax[0].get_xlim(), colors='white') # draw hlines
+        
+        # format and save figure
+        sea.set_style("dark")
+        plt.tight_layout()
+        plt.savefig('./heatmap_plot/heatmap_'+species[i]+'_'+str(algo)+'_'+str(param)+'.pdf')
+        plt.close()
+
+def plot_heatmap_coverage(algo, species):
+    
+    labels = ['','Feb\n\'19','','Apr\n\'19','','Jun\n\'19','','Aug\n\'19','','Oct\n\'19','','Dec\n\'19','','Feb\n\'20','','Apr\n\'20','','Jun\n\'20','','Aug\n\'20','','Oct\n\'20','','Dec\n\'20']
+
+    for i in range(3):
+        fig, ax = plt.subplots(1,2, figsize=(8,4), gridspec_kw={'width_ratios': [10, 1]}) # create two subplots, one for the heatmap and the other for the custom colorbar
+        fig.suptitle('Percentage of data with respect to total minutes for each month\n'+species[i])
+       
+        data =100*pd.read_csv('./heatmap_tables/heatmap_table_coverage_'+str(species[i])+'.csv', sep = ' ',index_col=0)
+        cmap, bins, ncolors = cmap_discretize(plt.cm.viridis,8,list_indices=[0, 0.10, 0.20, 0.40, 0.60, 0.70, 0.80, 0.90, 1])
         sea.heatmap(data, ax = ax[0], 
                     cbar=False, 
                     vmin = 0, vmax=100, 
@@ -1391,7 +1435,7 @@ def plot_heatmap_frequencies(algo, param, species):
                                 ticks=bins,
                                 spacing='uniform',
                                 drawedges=False)
-        cb.ax.set_yticklabels([str(int(100*b))+'%' for b in bins])
+        cb.ax.set_yticklabels([str(int(100*b))+'%' for b in bins[1:-1]])
   
         # draw bold hlines to separate different instruments
         indexes=data.index.to_list()
@@ -1404,11 +1448,11 @@ def plot_heatmap_frequencies(algo, param, species):
         # format and save figure
         sea.set_style("dark")
         plt.tight_layout()
-        plt.savefig('./heatmap_plot/heatmap_'+species[i]+'_'+str(algo)+'_'+str(param)+'.pdf')
+        plt.savefig('./heatmap_plot/heatmap_coverage_'+species[i]+'.pdf')
         plt.close()
 
 
-def cmap_discretize(cmap, N):
+def cmap_discretize(cmap, N, list_indices=[0, 0.01, 0.05, 0.10, 0.20, 0.40, 0.60, 0.80, 1]):
     """Return a discrete colormap from the continuous colormap cmap.
 
         cmap: colormap instance, eg. cm.jet. 
@@ -1425,7 +1469,7 @@ def cmap_discretize(cmap, N):
     colors_i = np.concatenate((np.linspace(0, 1., N), (0.,0.,0.,0.)))
     colors_rgba = cmap(colors_i)
     indices = np.linspace(0, 1., N+1)
-    indices = np.array([0, 0.01, 0.05, 0.10, 0.20, 0.40, 0.60, 0.80, 1])
+    indices = np.array(list_indices)
     cdict = {}
     for ki,key in enumerate(('red','green','blue')):
         cdict[key] = [ (indices[i], colors_rgba[i-1,ki], colors_rgba[i,ki]) for i in range(N+1) ]

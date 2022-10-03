@@ -300,24 +300,36 @@ def get_monthly_spike_frequency(stat, id, alg, params, spec, height, years, get_
         each list contains the montlhy mean difference between spiked and non-spiked data for the selected parameter
         the mean monthly difference is computed by averaging the hourly differences of the whole month
     """
-    
+
     try: # if monthly tables alredy exist upload the existing tables, otherwise compute montly mean
         monthly_freq_frame = pd.read_csv('./res_monthly_tables/monthly_freq_table_'     +str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ', index_col=0) 
         monthly_freq_frame.reset_index(drop=True, inplace=True) #remove first column
         monthly_freq = monthly_freq_frame.values.tolist()
-        #print('using existing data')  
-    except:
-
-        monthly_freq = []
+        monthly_cov_frame = pd.read_csv('./res_monthly_tables/monthly_coverage_table_'     +str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ', index_col=0) 
+        monthly_cov_frame.reset_index(drop=True, inplace=True) #remove first column
+        monthly_data_coverage = monthly_cov_frame.values.tolist()
         
+        # if tables are not long enough, then reprocess them. It is needed to avoid problems in the followuing computations
+        if (alg =='REBS') & ( (len(monthly_freq_frame)<10) | (len(monthly_cov_frame)<10) ):
+            raise Exception
+        if (alg =='SD') & ( (len(monthly_freq_frame)<9) | (len(monthly_cov_frame)<9) ):
+            raise Exception
+    
+    except:
+        monthly_freq = []
+        monthly_data_coverage = []
+
+
         for param in params: # loop over parameter values
 
             in_filename = './data-minute-spiked/' + stat[0:3]+'/' + fmt.get_L1_file_name(stat[0:3], height, spec, id) +'_'+alg+'_'+param+ '_spiked'
             data = pd.read_csv(in_filename, sep=';', parse_dates=['Datetime'] )  # read dataframe with spiked data
 
             monthly_freq_line = []
+            monthly_data_coverage_line = []
+
             for year in years:
-                for month in range(1,13):
+                for month, ndays in zip(range(1,13), [31,28,31,30,31,30,31,31,30,31,30,31]): # zip number of days of each month
                     # evaluate number of data and number of spikes for each month
                     ndata = len(data[(data['Datetime'].dt.year == year) &
                                           (data['Datetime'].dt.month == month)][spec.lower()])
@@ -332,21 +344,32 @@ def get_monthly_spike_frequency(stat, id, alg, params, spec, height, years, get_
                         freq = np.nan
                         
                     monthly_freq_line.append( round(freq,3))
+                    monthly_data_coverage_line.append(round(ndata/(ndays*1440),3))
                     
             monthly_freq.append(monthly_freq_line)
+            monthly_data_coverage.append(monthly_data_coverage_line)
         
         monthly_data_frame=pd.DataFrame(monthly_freq)
         monthly_data_frame.columns = [str(a)+'-2019' for a in range(1,13)] + [str(b)+'-2020' for b in range(1,13)]
         monthly_data_frame.index =[alg+str(par) for par in params] 
         monthly_data_frame.to_csv('./res_monthly_tables/monthly_freq_table_'          +str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
-    
+
+        monthly_cov_frame=pd.DataFrame(monthly_data_coverage)
+        monthly_cov_frame.columns = [str(a)+'-2019' for a in range(1,13)] + [str(b)+'-2020' for b in range(1,13)]
+        monthly_cov_frame.index =[alg+str(par) for par in params] 
+        monthly_cov_frame.to_csv('./res_monthly_tables/monthly_coverage_table_'          +str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
+
     if get_single_par_freq:
-        temp_monthly_freq=[]    
+        temp_monthly_freq = []   
+        temp_monthly_cov  = []
         indexes = splt.get_indexes_for_monthly_boxplot(alg, params)
         for i in indexes:   
             temp_monthly_freq.append(monthly_freq[i])
+            temp_monthly_cov.append(monthly_data_coverage[i])
         monthly_freq = temp_monthly_freq 
-    return monthly_freq
+        monthly_data_coverage = temp_monthly_cov
+                
+    return monthly_freq, monthly_data_coverage
 
 
 def get_daily_season_data(stat, id, alg, params, spec, height,season,season_str):
@@ -469,6 +492,7 @@ def write_heatmap_table_freq(stations, years, algo, spec):
         for par in parameters:
             print(alg, par)
             df = pd.DataFrame()
+            df_cov = pd.DataFrame() # frame for data coverage
             indexes=[]
             for stat in stations:
                 if (stat=='KIT') & (spec=='CO'):
@@ -482,12 +506,22 @@ def write_heatmap_table_freq(stations, years, algo, spec):
                 stat = stat[0:3]
                 #height = heights[-1] # get higher altitude
                 for height in heights:
-                    df_stat = pd.DataFrame(get_monthly_spike_frequency(stat, ID[0], alg, [par], spec, height, years, get_single_par_freq=True))
-                    indexes.append(stat+'-'+ID[0]+' - '+height.split('.')[0]+ 'm')
+                    freq_frame, cov_frame = get_monthly_spike_frequency(stat, ID[0], alg, [par], spec, height, years, get_single_par_freq=True)
+                    
+                    df_stat = pd.DataFrame(freq_frame)
                     df = pd.concat([df, df_stat])
+                    
+                    df_stat_cov = pd.DataFrame(cov_frame)
+                    df_cov = pd.concat([df_cov, df_stat_cov])
+
+                    indexes.append(stat+'-'+ID[0]+' - '+height.split('.')[0]+ 'm')
+           
+            
             df.set_index(pd.Index(indexes), inplace=True)
             df.to_csv('./heatmap_tables/heatmap_table_freq_'+str(alg)+'_'+str(par)+'_'+str(spec)+'.csv', sep = ' ')
-
+    
+            df_cov.set_index(pd.Index(indexes), inplace=True)
+            df_cov.to_csv('./heatmap_tables/heatmap_table_coverage_'+str(spec)+'.csv', sep = ' ')
 
 
 

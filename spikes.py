@@ -14,10 +14,11 @@ from configparser import ConfigParser
 import datetime as dt
 import spikes_data_selection_functions as sel
 import spikes_statistics as stats
-
+from os import sys
 
 # user parameters for the analysis
 stations = ['CMN','JFJ','UTO','IPR','JUS','KIT','PUI','SAC_329','SAC']
+# stations=['UTO']
 years = [2019,2020]
 config=ConfigParser()
 algorithms = [['SD', '0.1', '0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0'],
@@ -53,45 +54,43 @@ custom_events=[]
 
 # ### #### #### #### #### #### #### #### #### #### #### #### ####
 
-
-# for stat in stations:
-#     config.read('stations.ini') 
-#     heights = config.get(stat, 'height' ).split(',')
-#     species = config.get(stat, 'species').split(',')
-#     ID      = config.get(stat, 'inst_ID').split(',')
-#     stat = stat[0:3] # check used to read also ini file with KIT_CO that is used to read CO data at KIT. In fact CO data use different instruments and a different station has to be defined in the ini file
-#     if custom_events != []:
-#         events=custom_events
-#     else:
-#         events  = fmt.read_events(stat)
-#     print('\nSTATION:', stat)
+stations=['UTO']
+for stat in stations:
+    config.read('stations.ini') 
+    heights = config.get(stat, 'height' ).split(',')
+    species = config.get(stat, 'species').split(',')
+    ID      = config.get(stat, 'inst_ID').split(',')
+    stat = stat[0:3] # check used to read also ini file with KIT_CO that is used to read CO data at KIT. In fact CO data use different instruments and a different station has to be defined in the ini file
+    if custom_events != []:
+        events=custom_events
+    else:
+        events  = fmt.read_events(stat)
+    print('\nSTATION:', stat)
     
     
-#     for id in ID:
-#         for algo in algorithms:
-#             alg = algo[0] # read current algorithm name (REBS or SD)
-#             for param in algo[1:len(algo)]: # loop over parameter values
-#                 print('\nplot for ', alg, param)
-#                 for spec in species:
-#                     inst_frame = [] # list of dataframe with instrument data
-#                     inst_frame_PIQc = [] # list of dataframe with instrument data after PIQc
-#                     for h in heights:
-#                         in_filename = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, h, spec, id) +'_'+alg+'_'+param+ '_spiked'
-#                         inst_frame.append( pd.read_csv(in_filename, sep=';', parse_dates=['Datetime'] ) ) # read dataframe with spiked data
-#                         inst_frame_PIQc.append( pd.read_csv(in_filename+'_PIQc', sep=';', parse_dates=['Datetime'] ) ) # read dataframe with spiked data after PIQc
-#                     #### ####plot histograms ####
-#                     splt.plot_sd_histo(inst_frame, stat, id, alg, param, spec, heights)
+    for id in ID:
+        for algo in algorithms:
+            alg = algo[0] # read current algorithm name (REBS or SD)
+            for param in algo[1:len(algo)]: # loop over parameter values
+                print('\nplot for ', alg, param)
+                for spec in species:
+                    inst_frame = [] # list of dataframe with instrument data
+                    inst_frame_PIQc = [] # list of dataframe with instrument data after PIQc
+                    for h in heights:
+                        in_filename = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, h, spec, id) +'_'+alg+'_'+param+ '_spiked'
+                        inst_frame.append( pd.read_csv(in_filename, sep=';', parse_dates=['Datetime'] ) ) # read dataframe with spiked data
+                        inst_frame_PIQc.append( pd.read_csv(in_filename+'_PIQc', sep=';', parse_dates=['Datetime'] ) ) # read dataframe with spiked data after PIQc
+                    
 
-#                     #### #### Q-Qplot #### ####
-#                     print('processing qqplot')
-#                     splt.plot_sd_qqplot(inst_frame, stat, id, alg, param, spec, heights)
-#                     # # #### plot events timeseries #### ####
-#                     for ev in events:
-#                         print('processing event', ev[0])
-#                         splt.plot_sd_event(inst_frame, stat, id, alg, param, spec, heights, ev)
-#                         splt.plot_conc_sd_event(inst_frame, stat, id, alg, param, spec, heights, ev)
-#                         splt.plot_conc_event(inst_frame, stat, id, alg, param, spec, heights, ev)
-#                         splt.plot_conc_sd_event_histo(inst_frame, stat, id, alg, param, spec, heights, ev)
+
+                    ## #### plot events timeseries #### ####
+                    for ev in events:
+                        print('processing event', ev[0])
+                        # splt.plot_sd_event(inst_frame, stat, id, alg, param, spec, heights, ev)
+                        splt.plot_conc_sd_event(inst_frame, stat, id, alg, param, spec, heights, ev)
+                        splt.plot_conc_event(inst_frame, stat, id, alg, param, spec, heights, ev)
+                        splt.plot_conc_sd_event_histo(inst_frame, stat, id, alg, param, spec, heights, ev)
+                        
 #                     #### #### plot monthy timeseries #### ####
 #                     for year in years:
 #                         for mth in range(1,13):
@@ -100,11 +99,24 @@ custom_events=[]
 #                                                   spec=spec, 
 #                                                   id=id, 
 #                                                   heights=heights)
-#             #### get monthly frequencies of spikes #####
-#             for h in heights:
-#                 for spec in ['CO2']:
-#                     params = algo[1:len(algo)]
-#                     sel.get_monthly_spike_frequency(stat, id, alg, params, spec, h, years)
+
+#                     #### #### histograms and Q-Qplot #### ####
+#                     # print('processing qqplot')
+#                     # splt.plot_sd_histo(inst_frame, stat, id, alg, param, spec, heights)
+#                     # splt.plot_sd_qqplot(inst_frame, stat, id, alg, param, spec, heights)
+
+            ### get monthly frequencies of spikes #####
+            for h in heights:
+                for spec in ['CO2','CH4','CO']:
+                    if not((spec == 'CO') & (stat=='PUI')):
+                        
+                        params = algo[1:len(algo)]
+    
+                        if (spec == 'CO') & (stat=='KIT'):
+                            ID_kit = config.get('KIT_CO', 'inst_ID').split(',')[0]
+                            sel.get_monthly_spike_frequency(stat, ID_kit, alg, params, spec, h, years)
+                        else:
+                            sel.get_monthly_spike_frequency(stat, id, alg, params, spec, h, years)
 
 #         #### plot seasonal cycle #### #### 
 #         for spec in species:
@@ -124,9 +136,8 @@ custom_events=[]
 #                 stats.plot_BFOR_parameters_sdrebs(stat, id, algorithms, spec, h, high_spikes=True, high_spikes_mode='single',quant=None)
 #                 stats.plot_BFOR_parameters_lowhigh(stat, id, algorithms, spec, h, high_spikes_mode='single',quant=None)
         
-
 # stats.BFOR_table(stations, algorithms, high_spikes=False, high_spikes_mode='single', quant=None)
-
+sys.exit()
 ###########################################################################################################
 # ciclo per calcolare le tabelle con medie mensili/orarie dalle quali vengono calcolati i boxplot/heatmap #
 ###########################################################################################################
@@ -230,6 +241,8 @@ custom_events=[]
 #                splt.plot_conc_event_PIQc_plotly(inst_frame_PIQc, stat, id, alg, param, spec, heights, ev, mode='single',quant=0.)
 ################################################
 ################################################
+algorithms = [['SD', '0.1', '0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0'],
+             ['REBS', '1', '2', '3', '4', '5', '6', '7', '8', '9','10']]
 
 
 #### #### heatmap #### ###
@@ -237,19 +250,22 @@ species = ['CO2', 'CH4', 'CO']
 for spec in species:
     for algo in algorithms:
         print('heatmap for', spec, algo[0])
-        # sel.write_heatmap_table(stations, years, algo, spec)
+#         #sel.write_heatmap_table(stations, years, algo, spec) # NON FUNZIONA!!!!|!
         sel.write_heatmap_table_freq(stations, years, algo, spec)
 
 for algo in algorithms:
-    for param in algo[1:len(algo)]:
-        splt.plot_heatmap_frequencies(algo[0], param, species)
+    for par in algo[1:len(algo)]:
+        splt.plot_heatmap_frequencies(algo[0], par, species)
+
+splt.plot_heatmap_coverage(algo[0], species)
 
 
 
-coupled_algo = [(algorithms[0][i], algorithms[1][i]) for i in range(min(len(algorithms[0]),len(algorithms[1])))]
-for algos in coupled_algo[1:len(coupled_algo)]:
-    print('plot heatmap for', coupled_algo[0])
-    splt.plot_heatmap_monthly_diff(coupled_algo[0], algos, species)
+
+# coupled_algo = [(algorithms[0][i], algorithms[1][i]) for i in range(min(len(algorithms[0]),len(algorithms[1])))]
+# for algos in coupled_algo[1:len(coupled_algo)]:
+#     print('plot heatmap for', coupled_algo[0])
+#     splt.plot_heatmap_monthly_diff(coupled_algo[0], algos, species)
 
 
 
