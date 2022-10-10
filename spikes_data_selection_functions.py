@@ -188,12 +188,14 @@ def get_monthly_data(stat, id, alg, params, spec, height, years):
         
         # write results to frame
         monthly_data_frame=pd.DataFrame(monthly_data_spiked)
-        monthly_data_frame.columns = [str(a)+'-2019' for a in range(1,13)] + [str(b)+'-2020' for b in range(1,13)]
+        monthly_data_frame.columns = [[str(a)+'-'+str(y) for a in range(1,13)] for y in years]
+        
         monthly_data_frame.index =[alg+str(par) for par in params] + ['non-spiked']
         monthly_data_frame.to_csv('./res_monthly_tables/monthly_avg_table_'          +str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
     
         monthly_data_diff_frame=pd.DataFrame(monthly_data_diff)
-        monthly_data_diff_frame.columns = [str(a)+'-2019' for a in range(1,13)] + [str(b)+'-2020' for b in range(1,13)]
+        monthly_data_diff_frame.columns = [[str(a)+'-'+str(y) for a in range(1,13)] for y in years]
+
         monthly_data_diff_frame.index =[alg+str(par) for par in params]
         monthly_data_diff_frame.to_csv('./res_monthly_tables/monthly_avg_table_diff_'+str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
 
@@ -350,12 +352,18 @@ def get_monthly_spike_frequency(stat, id, alg, params, spec, height, years, get_
             monthly_data_coverage.append(monthly_data_coverage_line)
         
         monthly_data_frame=pd.DataFrame(monthly_freq)
-        monthly_data_frame.columns = [str(a)+'-2019' for a in range(1,13)] + [str(b)+'-2020' for b in range(1,13)]
+        if stat[0:3]!='ZSF':
+            monthly_data_frame.columns = [str(a)+'-2019' for a in range(1,13)] + [str(b)+'-2020' for b in range(1,13)]
+        else:
+            monthly_data_frame.columns = [str(a)+'-2021' for a in range(1,13)]
         monthly_data_frame.index =[alg+str(par) for par in params] 
         monthly_data_frame.to_csv('./res_monthly_tables/monthly_freq_table_'          +str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
 
         monthly_cov_frame=pd.DataFrame(monthly_data_coverage)
-        monthly_cov_frame.columns = [str(a)+'-2019' for a in range(1,13)] + [str(b)+'-2020' for b in range(1,13)]
+        if stat[0:3]!='ZSF':
+            monthly_cov_frame.columns = [str(a)+'-2019' for a in range(1,13)] + [str(b)+'-2020' for b in range(1,13)]
+        else:
+            monthly_cov_frame.columns = [str(a)+'-2021' for a in range(1,13)]
         monthly_cov_frame.index =[alg+str(par) for par in params] 
         monthly_cov_frame.to_csv('./res_monthly_tables/monthly_coverage_table_'          +str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
 
@@ -372,7 +380,7 @@ def get_monthly_spike_frequency(stat, id, alg, params, spec, height, years, get_
     return monthly_freq, monthly_data_coverage
 
 
-def get_daily_season_data(stat, id, alg, params, spec, height,season,season_str):
+def get_daily_season_data(stat, id, alg, params, spec, height,season,season_str, years=[2019,2020]):
     ## NB this function should be implemented with a try-except statement as for the get_monthly_data() function.
     """
     read spiked data files and returns daily cycle averaged over season for different parameters
@@ -409,21 +417,22 @@ def get_daily_season_data(stat, id, alg, params, spec, height,season,season_str)
         daily_cycles_diff=[]
 
         if season[0]<season[1]: # if the first month is december consider the previous year
-            start_date = dt.datetime(2020,season[0],1)
+            start_date = dt.datetime(years[-1],season[0],1)
         else:
-            start_date = dt.datetime(2019,season[0],1)
-        end_date = dt.datetime(2020,season[1],1)
+            start_date = dt.datetime(years[-1]-1,season[0],1)
+        end_date = dt.datetime(years[-1],season[1],1)
 
         for param in params: # loop over parameter values
             in_filename = './data-minute-spiked/' + stat +'/' + fmt.get_L1_file_name(stat, height, spec, id) +'_'+alg+'_'+param+ '_spiked'
             data = pd.read_csv(in_filename, sep=';', parse_dates=['Datetime'] )  # read dataframe with spiked data
             season_data = data.loc[(data['Datetime'] > start_date) &
                                 (data['Datetime'] < end_date) &
-                                (data['spike_'+spec.lower()]==False)] # read spiked data
+                                (data['spike_'+spec.lower()]==False)] # read despiked data
             season_data_hourly = get_hourly_frame(season_data, 'Datetime',spec.lower())
 
             season_data_non_spiked = data.loc[(data['Datetime'] > start_date) &
-                                            (data['Datetime'] < end_date)] # read non-spiked data
+                                            (data['Datetime'] < end_date)] # read non-despiked data
+
             season_data_non_spiked_hourly = get_hourly_frame(season_data_non_spiked, 'Datetime', spec.lower())
 
             season_data_hourly_diff = season_data_hourly[spec.lower()] - season_data_non_spiked_hourly[spec.lower()]

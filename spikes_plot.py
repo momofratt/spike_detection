@@ -31,11 +31,19 @@ daily_range_CH4_dict = {'SAC':[1950,2050], 'CMN':[1930,1980], 'IPR':[1975,2150],
 daily_range_CO_dict  = {'SAC':[90,180], 'CMN':[90,150], 'IPR':[100,400], 'KIT':[125,200], 'JUS':[90,260], 'JFJ':[100,130],'PUI':[],'UTO':[85,145]}
 
 
-def get_indexes_for_monthly_boxplot(alg, params):
+def get_indexes_for_monthly_boxplot(alg, params, stat='', spec=''):
     """ get index for a given algorithm and parameter"""
     
     all_algorithms = [['SD', '0.1', '0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0'],
                       ['REBS', '1', '2', '3', '4', '5', '6', '7','8' , '9', '10']]
+    
+    if stat[0:3] in ['ZSF', 'SAC','KIT','JFJ']:
+        if spec in ['CO2','CH4']:
+            all_algorithms = [['SD', '0.1', '1.0', '4.0'],
+                              ['REBS', '1', '3', '10']]
+        else:
+             all_algorithms = [['SD', '0.1', '3.0', '4.0'],
+                               ['REBS', '1', '8', '10']]   
     indexes=[]
     for algo in all_algorithms:
         if algo[0]!=alg:
@@ -155,7 +163,7 @@ def plot_season_daily_cycle(stat, id, algorithms, spec, height, log):
         plt.savefig('./res_plot/'+stat+'/daily_cycle/'+log_folder+'seasonal_daily_cycle_'+season[0]+'_'+stat+'_'+spec+'_'+id+'_h'+height+log_suff+'.png', format='png', bbox_inches="tight")
         plt.close(fig)
 
-def plot_season_daily_cycle_compact(stat, id, algorithms, spec, height, log):
+def plot_season_daily_cycle_compact(stat, id, algorithms, spec, height, log, years=[2019,2020]):
     """    more compact plot respect to plot_season_daily_cycle(function)    """
     colors =[['#DDA0DD','#FF1493','#8A2BE2' ],
              ['skyblue', 'deepskyblue','steelblue']]
@@ -266,15 +274,13 @@ def plot_season_daily_cycle_compact(stat, id, algorithms, spec, height, log):
                     subparams=['1','3','10']
 
             params = algorithms[i][1:len(algorithms[i])] # get list of parameters
-            season_day_data, season_day_data_diff = sel.get_daily_season_data(stat, id, alg, params, spec, height,season[1],season[0])
+            season_day_data, season_day_data_diff = sel.get_daily_season_data(stat, id, alg, params, spec, height,season[1],season[0],years=years)
             non_spiked = np.array(season_day_data[-1])
             season_day_data_sub, season_day_data_diff_sub = [], [] # define sublists with selected parameters
-            indexes = get_indexes_for_monthly_boxplot(alg, subparams)
-
+            indexes = get_indexes_for_monthly_boxplot(alg, subparams,stat=stat,spec=spec)
             for k in indexes:
                 season_day_data_sub.append(season_day_data[k])
                 season_day_data_diff_sub.append(season_day_data_diff[k])
-
             plot_daily_cycle(season_day_data_sub, season_day_data_diff_sub, non_spiked, ax[i], ax[2], alg, params, indexes)
         if log:
             log_folder = 'log/'
@@ -357,11 +363,16 @@ def plot_season( stat,  id, algorithms, spec, height,years, log):
 
         for a in ax:
             a.grid(which='major')
-            a.set_xticks(np.arange(0,23,2))
+            a.set_xticks(np.arange(0,int(len(years)*12-1),2))
             #months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-            labels = ['Jan\n\'19','Mar\n\'19','May\n\'19','Jul\n\'19','Sep\n\'19','Nov\n\'19','Jan\n\'20','Mar\n\'20','May\n\'20','Jul\n\'20','Sep\n\'20','Nov\n\'20']
+            #labels = ['Jan\n\'19','Mar\n\'19','May\n\'19','Jul\n\'19','Sep\n\'19','Nov\n\'19','Jan\n\'20','Mar\n\'20','May\n\'20','Jul\n\'20','Sep\n\'20','Nov\n\'20']
+            labels = []
+            for s in years:
+                labels = labels+['Jan\n\''+str(s)[2:4], 'Mar\n\''+str(s)[2:4],'May\n\''+str(s)[2:4],'Jul\n\''+str(s)[2:4],'Sep\n\''+str(s)[2:4],'Nov\n\''+str(s)[2:4] ]
+
             a.set_xticklabels(labels)
-        ax[0].grid(b=True, which='minor', linestyle='-', alpha=0.2)
+        ax[0].grid(b=True, which='minor', linestyle='-', alpha=0.4)
+        ax[1].grid(b=True, which='major', linestyle='-', alpha=0.4)
 
     log_folder=''
     log_suff  =''
@@ -508,8 +519,8 @@ def plot_season_boxplot(stations, IDs, algorithms, spec, height, years, log):
     for i in range(len(algorithms)):
         alg = algorithms[i][0] # read current algorithm name (REBS or SD)
         params = algorithms[i][1:len(algorithms[i])] # get list of parameters
-        indexes = get_indexes_for_monthly_boxplot(alg, params)
         for j in range(len(stations)):
+            indexes = get_indexes_for_monthly_boxplot(alg, params,stat=stations[j],spec=spec)
             monthly_data, monthly_data_diff = sel.get_monthly_data(stations[j], IDs[j], alg, params, spec, height[j], years)
             monthly_data_diff = np.array(monthly_data_diff)
             plot_monthly( -monthly_data_diff, ax[i][j], stations[j], j, alg, params, indexes)
@@ -1369,7 +1380,7 @@ def plot_heatmap_frequencies(algo, param, species):
 
     for i in range(3):
         fig, ax = plt.subplots(1,2, figsize=(8,4), gridspec_kw={'width_ratios': [10, 1]}) # create two subplots, one for the heatmap and the other for the custom colorbar
-        fig.suptitle(species[i] + ' - '+algo+' '+param)
+        fig.suptitle('Percentage of spike detected for each month\n'+species[i] + ' - '+algo+' '+param)
        
         data =pd.read_csv('./heatmap_tables/heatmap_table_freq_'+str(algo)+'_'+str(param)+'_'+str(species[i])+'.csv', sep = ' ',index_col=0)
         cmap, bins, ncolors = cmap_discretize(plt.cm.viridis,8)

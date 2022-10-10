@@ -87,6 +87,10 @@ def get_L1_file_name(station, height, specie, inst_ID):
     file_nm = station[0:3]+'_2019-01-01T00:00:00_2020-12-31T23:59:58_'+height+'_'+inst_ID+'_C_minute.'+specie
     if station[0:3]=='PDM':
         file_nm = station[0:3]+'_2014-11-01T00:00:00_2015-12-31T23:59:58_'+height+'_'+inst_ID+'_C_minute.'+specie
+        
+    if station[0:3]=='ZSF':
+        file_nm = station[0:3]+'_2021-01-01T00:00:00_2022-05-27T23:59:58_'+height+'_'+inst_ID+'_C_minute.'+specie        
+
     return file_nm
 
 def get_spike_file_path(method, param):
