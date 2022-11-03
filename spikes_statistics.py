@@ -107,8 +107,8 @@ def plot_BFOR_parameters(stat, inst_id, algorithms, spec, height, high_spikes, h
         fig.suptitle('Statistical parameters\nstation: '+stat+'  h='+str(height)+'   spec='+spec+high_spikes_str)
         labels=[str(p) for p in params]
 
-        ax.plot(H, label='hit rate', color = 'C1', ls='.')
-        ax.plot(F, label='false alarm rate', color = 'C1', ls='.')
+        ax.plot(H, label='hit rate', color = 'C1', ls='-')
+        ax.plot(F, label='false alarm rate', color = 'C1', ls='-')
         ax.plot(H-F, label = 'H-F', color='C1')
         ax.plot(ORSS, label = 'ORSS', color = 'C3')
 
@@ -421,7 +421,7 @@ def plot_BFOR_parameters_sdrebs(stat, inst_id, algorithms, spec, height, high_sp
         ax[i].set_xlabel(alg_names[i])
         ax[i].set_ylim(0,1.05)
         if (min(ORSS[i])<0) & (min(ORSS[i])>-100):
-            ax[i].set_ylim(min(ORSS)-0.1,1.05)
+            ax[i].set_ylim(min(ORSS[i])-0.1,1.05)
     
         if spec=='CO':
             if alg_names[0]=='REBS':
@@ -539,7 +539,7 @@ def plot_BFOR_parameters_lowhigh(stat, inst_id, algorithms, spec, height,  high_
             ax[i].set_xlabel(alg_names[k+i])
             ax[i].set_ylim(0,1.05)
             if (min(ORSS[k+i])<0) & (min(ORSS[k+i])>-100):
-                ax[i].set_ylim(min(ORSS)-0.1,1.05)
+                ax[i].set_ylim(min(ORSS[k+i])-0.1,1.05)
         
             if spec=='CO':
                 if alg_names[0]=='REBS':

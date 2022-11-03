@@ -391,7 +391,7 @@ def add_PIQc_high_spikes_column(stations, alg, param):
                     frame_spiked = pd.read_csv(infile_spiked, sep=';')
                     frame_spiked['Datetime'] = pd.to_datetime(frame_spiked['Datetime'])
                     frame_spiked = frame_spiked.set_index('Datetime')
-                    frame_spiked.insert(len(frame_spiked.columns),spec.lower()+'_rolling_mean', round(frame_spiked[spec.lower()].rolling('1H', center=True).mean(),3) )
+                    frame_spiked.insert(len(frame_spiked.columns),spec.lower()+'_rolling_mean', round(frame_spiked[spec.lower()].rolling('30min', center=True).mean(),3) )
                     frame_spiked.insert(len(frame_spiked.columns),'spike_amplitude_'+spec.lower()+'_PIQc', np.nan)
                     frame_spiked['spike_amplitude_'+spec.lower()+'_PIQc'] = frame_spiked[spec.lower()] - frame_spiked[spec.lower()+'_rolling_mean']
                     frame_spiked.loc[ frame_spiked['spike_'+spec.lower()+'_PIQc']==False, 'spike_amplitude_'+spec.lower()+'_PIQc'] = 0

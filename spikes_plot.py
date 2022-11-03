@@ -37,7 +37,7 @@ def get_indexes_for_monthly_boxplot(alg, params, stat='', spec=''):
     all_algorithms = [['SD', '0.1', '0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0'],
                       ['REBS', '1', '2', '3', '4', '5', '6', '7','8' , '9', '10']]
     
-    if stat[0:3] in ['ZSF', 'SAC','KIT','JFJ']:
+    if stat[0:3] in ['CMN','JFJ','UTO','IPR','JUS','KIT','PUI','SAC','ZSF']: # stations reprocessed using a restricted number of parameters, thus they require another line
         if spec in ['CO2','CH4']:
             all_algorithms = [['SD', '0.1', '1.0', '4.0'],
                               ['REBS', '1', '3', '10']]
@@ -262,6 +262,20 @@ def plot_season_daily_cycle_compact(stat, id, algorithms, spec, height, log, yea
         for i in range(len(algorithms)):
             alg = algorithms[i][0] # read current algorithm name (REBS or SD)
 
+            ########################################################################
+            if spec == 'CO': # analysis of new results with extreeme and mean values
+               if alg=='SD':
+                   params = ['0.1', '3.0', '4.0']
+               elif alg=='REBS':
+                   params = ['1', '8', '10']
+            else:
+               if alg=='SD':
+                   params = ['0.1', '1.0', '4.0']
+               elif alg=='REBS':
+                   params = ['1', '3', '10']
+            ######################################################################## 
+                            
+
             if spec == 'CO':
                 if alg =='SD': # define selected parameters
                     subparams=['0.1','3.0','4.0']
@@ -273,7 +287,7 @@ def plot_season_daily_cycle_compact(stat, id, algorithms, spec, height, log, yea
                 else:
                     subparams=['1','3','10']
 
-            params = algorithms[i][1:len(algorithms[i])] # get list of parameters
+            # params = algorithms[i][1:len(algorithms[i])] # get list of parameters
             season_day_data, season_day_data_diff = sel.get_daily_season_data(stat, id, alg, params, spec, height,season[1],season[0],years=years)
             non_spiked = np.array(season_day_data[-1])
             season_day_data_sub, season_day_data_diff_sub = [], [] # define sublists with selected parameters
@@ -380,6 +394,22 @@ def plot_season( stat,  id, algorithms, spec, height,years, log):
     for i in range(len(algorithms)):
         alg = algorithms[i][0] # read current algorithm name (REBS or SD)
         params = algorithms[i][1:len(algorithms[i])] # get list of parameters
+        
+        
+        ########################################################################
+        if spec == 'CO': # analysis of new results with extreeme and mean values
+           if alg=='SD':
+               params = ['0.1', '3.0', '4.0']
+           elif alg=='REBS':
+               params = ['1', '8', '10']
+        else:
+           if alg=='SD':
+               params = ['0.1', '1.0', '4.0']
+           elif alg=='REBS':
+               params = ['1', '3', '10']
+        ######################################################################## 
+                         
+        
         monthly_data, monthly_data_diff = sel.get_monthly_data(stat, id, alg, params, spec, height,years)
         plot_monthly(monthly_data, monthly_data_diff, ax[i], alg, params)
 
@@ -589,7 +619,7 @@ def plot_season_boxplot_plotly(stations, algorithms, spec, years, log):
         params = algorithms[i][1:len(algorithms[i])] # get list of parameters
         indexes = get_indexes_for_monthly_boxplot(alg, params) # get the indexes corresponding to the used parameters
         
-        monthly_data_diff_all_stat = [] # used to "store" the monthly tables of different stations and sampling altitudes
+        monthly_data_diff_all_stat = [] # used to "store" the monthly tables of different stations and sampling altitudes. Each line corresponds to monthly data at a given altitude of a given station
         for stat in stations:
             heights = config.get(stat, 'height' ).split(',')
             ID      = config.get(stat, 'inst_ID')
@@ -597,22 +627,24 @@ def plot_season_boxplot_plotly(stations, algorithms, spec, years, log):
                 monthly_data, monthly_data_diff = sel.get_monthly_data(stat, ID, alg, params, spec, height, years)
                 #print(monthly_data_diff)
                 monthly_data_diff_all_stat.append(monthly_data_diff)
-                if len(monthly_data_diff)<9:
-                    print('ERRORE numero di linee inferiore al numero di parametri:', stat, height, alg)
+                
         # set x and y arrays in for the plotly grouped boxplot
         # print(len(monthly_data_diff_all_stat),len(monthly_data_diff_all_stat[0]))
         y=[]
-        print(indexes)
+        print('\nindexes',indexes)
         
-        for l in indexes:   
+        for m in range(3): # loop over indexes used (e.g. REBS 1,3,10). The number of parameters in this plot is alwaye equal to three (two extreemes plus the mean value)   
             x=[]
             y_line = []
             j=0
             for stat in stations: # define x and y for grouped boxplots
                 print(stat)
+                indexes = get_indexes_for_monthly_boxplot(alg, params, stat=stat, spec=spec) # get the indexes corresponding to the used parameters
+                l = indexes[m] # returns the index. This can be different for different sites: newly processed sites have only 3 parameters for each algorithm, while older ones have 9 or 10
                 heights = config.get(stat, 'height' ).split(',')
                 x_line = []
                 for k in range(len(heights)):
+                    print('i',j,l)
                     y_line = y_line + monthly_data_diff_all_stat[j][l]
                     x_line = x_line + [ stat[0:3]+'-'+config.get(stat, 'inst_ID')+' - '+ heights[k]+' m' for a in range(len(monthly_data_diff_all_stat[j][l])) ]
                     j+=1
@@ -727,8 +759,7 @@ def plot_hourly_boxplot_plotly(stations, IDs, algorithms, spec, years):
             for height in heights:
                 hourly_data, hourly_data_diff = sel.get_hourly_data(stat, ID, alg, params, spec, height)
                 hourly_data_diff_all_stat.append(hourly_data_diff)
-                if len(hourly_data_diff)<9:
-                    print('ERRORE numero di linee inferiore al numero di parametri:', stat, height, alg)
+
         # set x and y arrays in for the plotly grouped boxplot
         # print(len(monthly_data_diff_all_stat),len(monthly_data_diff_all_stat[0]))
         y=[]
@@ -1374,49 +1405,48 @@ def plot_heatmap_monthly_diff(algo_names, algos, species):
     
 
 
-def plot_heatmap_frequencies(algo, param, species):
+def plot_heatmap_frequencies(algo, param, spec):
     
     labels = ['','Feb\n\'19','','Apr\n\'19','','Jun\n\'19','','Aug\n\'19','','Oct\n\'19','','Dec\n\'19','','Feb\n\'20','','Apr\n\'20','','Jun\n\'20','','Aug\n\'20','','Oct\n\'20','','Dec\n\'20']
 
-    for i in range(3):
-        fig, ax = plt.subplots(1,2, figsize=(8,4), gridspec_kw={'width_ratios': [10, 1]}) # create two subplots, one for the heatmap and the other for the custom colorbar
-        fig.suptitle('Percentage of spike detected for each month\n'+species[i] + ' - '+algo+' '+param)
-       
-        data =pd.read_csv('./heatmap_tables/heatmap_table_freq_'+str(algo)+'_'+str(param)+'_'+str(species[i])+'.csv', sep = ' ',index_col=0)
-        cmap, bins, ncolors = cmap_discretize(plt.cm.viridis,8)
-        sea.heatmap(100*data, ax = ax[0], 
-                    cbar=False, 
-                    vmin = 0, vmax=100, 
-                    cmap=cmap, 
-                    xticklabels=labels,
-                    linewidths=0.01,
-                    linecolor='black',
-                    annot=True, fmt=".1f", annot_kws={'fontsize':5})
-        
-        # define and plot custom colorbar
-        norm = matplotlib.colors.BoundaryNorm(boundaries=bins, ncolors=ncolors-1 )
-        cb=matplotlib.colorbar.ColorbarBase(ax[1], 
-                                cmap=cmap,
-                                boundaries=  bins ,
-                                extend='both',
-                                ticks=bins,
-                                spacing='uniform',
-                                drawedges=False)
-        cb.ax.set_yticklabels([str(int(100*b))+'%' for b in bins[1:-1]])
+    fig, ax = plt.subplots(1,2, figsize=(8,4), gridspec_kw={'width_ratios': [10, 1]}) # create two subplots, one for the heatmap and the other for the custom colorbar
+    fig.suptitle('Percentage of spike detected for each month\n'+spec + ' - '+algo+' '+param)
+   
+    data =pd.read_csv('./heatmap_tables/heatmap_table_freq_'+str(algo)+'_'+str(param)+'_'+str(spec)+'.csv', sep = ' ',index_col=0)
+    cmap, bins, ncolors = cmap_discretize(plt.cm.viridis,8)
+    sea.heatmap(100*data, ax = ax[0], 
+                cbar=False, 
+                vmin = 0, vmax=100, 
+                cmap=cmap, 
+                xticklabels=labels,
+                linewidths=0.01,
+                linecolor='black',
+                annot=True, fmt=".1f", annot_kws={'fontsize':5})
+    
+    # define and plot custom colorbar
+    norm = matplotlib.colors.BoundaryNorm(boundaries=bins, ncolors=ncolors-1 )
+    cb=matplotlib.colorbar.ColorbarBase(ax[1], 
+                            cmap=cmap,
+                            boundaries=  bins ,
+                            extend='both',
+                            ticks=bins,
+                            spacing='uniform',
+                            drawedges=False)
+    cb.ax.set_yticklabels([str(int(100*b))+'%' for b in bins[1:-1]])
   
-        # draw bold hlines to separate different instruments
-        indexes=data.index.to_list()
-        hlines_indexes=[]
-        for j in range(1, len(indexes)):
-            if indexes[j][0:7]!=indexes[j-1][0:7]: # if the jth instrument is different from the j-1th store the line number in the hlines_indexes list
-                hlines_indexes.append(j)
-        ax[0].hlines(hlines_indexes, *ax[0].get_xlim(), colors='white') # draw hlines
-        
-        # format and save figure
-        sea.set_style("dark")
-        plt.tight_layout()
-        plt.savefig('./heatmap_plot/heatmap_'+species[i]+'_'+str(algo)+'_'+str(param)+'.pdf')
-        plt.close()
+    # draw bold hlines to separate different instruments
+    indexes=data.index.to_list()
+    hlines_indexes=[]
+    for j in range(1, len(indexes)):
+        if indexes[j][0:7]!=indexes[j-1][0:7]: # if the jth instrument is different from the j-1th store the line number in the hlines_indexes list
+            hlines_indexes.append(j)
+    ax[0].hlines(hlines_indexes, *ax[0].get_xlim(), colors='white') # draw hlines
+    
+    # format and save figure
+    sea.set_style("dark")
+    plt.tight_layout()
+    plt.savefig('./heatmap_plot/heatmap_'+spec+'_'+str(algo)+'_'+str(param)+'.png', dpi=150)
+    plt.close()
 
 def plot_heatmap_coverage(algo, species):
     

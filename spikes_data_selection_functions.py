@@ -188,13 +188,17 @@ def get_monthly_data(stat, id, alg, params, spec, height, years):
         
         # write results to frame
         monthly_data_frame=pd.DataFrame(monthly_data_spiked)
-        monthly_data_frame.columns = [[str(a)+'-'+str(y) for a in range(1,13)] for y in years]
-        
+
+        columns = []
+        for y in years:
+            columns = columns + [str(a)+'-'+str(y) for a in range(1,13)]
+     
+        monthly_data_frame.columns = columns
         monthly_data_frame.index =[alg+str(par) for par in params] + ['non-spiked']
         monthly_data_frame.to_csv('./res_monthly_tables/monthly_avg_table_'          +str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
     
         monthly_data_diff_frame=pd.DataFrame(monthly_data_diff)
-        monthly_data_diff_frame.columns = [[str(a)+'-'+str(y) for a in range(1,13)] for y in years]
+        monthly_data_diff_frame.columns = columns
 
         monthly_data_diff_frame.index =[alg+str(par) for par in params]
         monthly_data_diff_frame.to_csv('./res_monthly_tables/monthly_avg_table_diff_'+str(stat[0:3])+'_'+str(id)+'_'+str(alg)+'_'+str(spec)+'_h'+str(height)+'.csv', sep=' ')
@@ -312,10 +316,10 @@ def get_monthly_spike_frequency(stat, id, alg, params, spec, height, years, get_
         monthly_data_coverage = monthly_cov_frame.values.tolist()
         
         # if tables are not long enough, then reprocess them. It is needed to avoid problems in the followuing computations
-        if (alg =='REBS') & ( (len(monthly_freq_frame)<10) | (len(monthly_cov_frame)<10) ):
-            raise Exception
-        if (alg =='SD') & ( (len(monthly_freq_frame)<9) | (len(monthly_cov_frame)<9) ):
-            raise Exception
+        # if (alg =='REBS') & ( (len(monthly_freq_frame)<10) | (len(monthly_cov_frame)<10) ):
+        #     raise Exception
+        # if (alg =='SD') & ( (len(monthly_freq_frame)<9) | (len(monthly_cov_frame)<9) ):
+        #     raise Exception
     
     except:
         monthly_freq = []
@@ -370,7 +374,7 @@ def get_monthly_spike_frequency(stat, id, alg, params, spec, height, years, get_
     if get_single_par_freq:
         temp_monthly_freq = []   
         temp_monthly_cov  = []
-        indexes = splt.get_indexes_for_monthly_boxplot(alg, params)
+        indexes = splt.get_indexes_for_monthly_boxplot(alg, params, stat=stat, spec=spec)
         for i in indexes:   
             temp_monthly_freq.append(monthly_freq[i])
             temp_monthly_cov.append(monthly_data_coverage[i])
@@ -506,6 +510,8 @@ def write_heatmap_table_freq(stations, years, algo, spec):
             for stat in stations:
                 if (stat=='KIT') & (spec=='CO'):
                     stat='KIT_CO'
+                if (stat=='ZSF') & (spec=='CO'):
+                    stat='ZSF_CO'
                 if (stat=='PUI') & (spec=='CO'):
                     continue
                 config.read('stations.ini') 
